@@ -239,6 +239,12 @@ class CAR(Platforms):
     dbc_dict('toyota_new_mc_pt_generated', 'toyota_adas'),
     flags=ToyotaFlags.NO_STOP_TIMER,
   )
+  TOYOTA_PRIUS_5TH_GEN = ToyotaTSS2PlatformConfig(
+    [ToyotaCarDocs("Toyota Prius 2023-")],
+    CarSpecs(mass=1540, wheelbase=2.75, steerRatio=14.0, tireStiffnessFactor=0.65),
+    dbc_dict('toyota_new_mc_pt_generated', 'toyota_adas'),
+    flags=ToyotaFlags.NO_STOP_TIMER,
+  )
   TOYOTA_PRIUS_TSS2 = ToyotaTSS2PlatformConfig(
     [
       ToyotaCarDocs("Toyota Prius 2021-22", video="https://www.youtube.com/watch?v=J58TvCpUd4U"),
