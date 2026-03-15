@@ -1797,6 +1797,32 @@ FW_VERSIONS = {
       b'\x028646F4712000\x00\x00\x00\x008646G2601500\x00\x00\x00\x00',
     ],
   },
+  CAR.TOYOTA_PRIUS_5TH_GEN: {
+    (Ecu.abs, 0x7b0, None): [
+      b'\x01F152647132\x00\x00\x00\x00\x00\x00',
+    ],
+    (Ecu.ads, 0x7ed, None): [
+      b'\x01891114702100\x00\x00\x00\x00',
+    ],
+    (Ecu.dsu, 0x791, None): [
+      b'\x01881514701100\x00\x00\x00\x00',
+    ],
+    (Ecu.eps, 0x7a1, None): [
+      b'\x01896504730100\x00\x00\x00\x00',
+    ],
+    (Ecu.fwdCamera, 0x700, None): [
+      b'\x028646F4712200\x00\x00\x00\x00\x8646G4701200\x00\x00\x00\x00',
+    ],
+    (Ecu.fwdRadar, 0x750, 0xf): [
+      b'\x018821F4701100\x00\x00\x00\x00',
+    ],
+    (Ecu.hybrid, 0x7d2, None): [
+      b'\x01896B14761000\x00\x00\x00\x00',
+    ],
+    (Ecu.vsc, 0x7b3, None): [
+      b'\x01896804751000\x00\x00\x00\x00',
+    ],
+  },
   CAR.TOYOTA_MIRAI: {
     (Ecu.abs, 0x7d1, None): [
       b'\x01898A36203000\x00\x00\x00\x00',
