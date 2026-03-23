@@ -3593,6 +3593,17 @@
     ],
     "package": "All"
   },
+  "Toyota Prius 2023-": {
+    "platform": "TOYOTA_PRIUS_5TH_GEN",
+    "make": "Toyota",
+    "brand": "toyota",
+    "model": "TOYOTA_PRIUS_5TH",
+    "year": [
+      "2023",
+      "2024"
+    ],
+    "package": "All"
+  },
   "Toyota Prius Prime 2017-20": {
     "platform": "TOYOTA_PRIUS",
     "make": "Toyota",
