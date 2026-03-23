@@ -10,6 +10,7 @@ from opendbc.car.fw_versions import ObdCallback, get_fw_versions_ordered, get_pr
 from opendbc.car.mock.values import CAR as MOCK
 from opendbc.car.values import BRANDS
 from opendbc.car.vin import get_vin, is_valid_vin, VIN_UNKNOWN
+from opendbc.car.toyota.values import CAR as TOYOTA
 
 from opendbc.sunnypilot.car.interfaces import setup_interfaces as sunnypilot_interfaces
 
@@ -157,11 +158,11 @@ def get_car(can_recv: CanRecvCallable, can_send: CanSendCallable, set_obd_multip
   candidate, fingerprints, vin, car_fw, source, exact_match = fingerprint(can_recv, can_send, set_obd_multiplexing, num_pandas, cached_params,
                                                                           fixed_fingerprint)
   # TEMP: force Prius 5th gen for bring-up
-  candidate = "TOYOTA_PRIUS_5TH_GEN"
+  candidate = TOYOTA.TOYOTA_PRIUS_5TH_GEN
 
   if candidate is None:
     carlog.error({"event": "car doesn't match any fingerprints", "fingerprints": repr(fingerprints)})
-    candidate = "MOCK"
+    candidate = MOCK.MOCK
 
   CarInterface = interfaces[candidate]
   CP: CarParams = CarInterface.get_params(candidate, fingerprints, car_fw, alpha_long_allowed, is_release, docs=False)
