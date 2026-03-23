@@ -93,7 +93,7 @@ class Footnote(Enum):
 @dataclass
 class ToyotaCarDocs(CarDocs):
   package: str = "All"
-  car_parts: CarParts = field(default_factory=CarParts.common([CarHarness.toyota_a]))
+  car_parts: CarParts = field(default_factory=CarParts.common([CarHarness.toyota_b]))
 
 
 @dataclass
