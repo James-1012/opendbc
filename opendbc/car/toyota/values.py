@@ -246,6 +246,12 @@ class CAR(Platforms):
     ],
     CarSpecs(mass=3115. * CV.LB_TO_KG, wheelbase=2.70002, steerRatio=13.4, tireStiffnessFactor=0.6371),
   )
+  TOYOTA_PRIUS_5TH_GEN = ToyotaTSS2PlatformConfig(
+    [
+      ToyotaCarDocs("Toyota Prius 2023-"),
+    ],
+    CarSpecs(mass=3115. * CV.LB_TO_KG, wheelbase=2.70002, steerRatio=13.4, tireStiffnessFactor=0.6371),
+  )
   TOYOTA_RAV4 = PlatformConfig(
     [
       ToyotaCarDocs("Toyota RAV4 2016", "Toyota Safety Sense P"),
