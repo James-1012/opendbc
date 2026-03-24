@@ -72,12 +72,12 @@ class CarState(CarStateBase, CarStateExt):
     ret.seatbeltUnlatched = cp.vl["BODY_CONTROL_STATE"]["SEATBELT_DRIVER_UNLATCHED"] != 0
     ret.parkingBrake = cp.vl["BODY_CONTROL_STATE"]["PARKING_BRAKE"] == 1
 
-    ret.brakePressed = cp.vl["BRAKE_MODULE_257"]["BRAKE_PRESSED"] != 0
+    ret.brakePressed = cp.vl["BRAKE_MODULE"]["BRAKE_PRESSED"] != 0
     ret.brakeHoldActive = cp.vl["ESP_CONTROL"]["BRAKE_HOLD_ACTIVE"] == 1
 
     if self.CP.flags & ToyotaFlags.SECOC.value:
       self.secoc_synchronization = copy.copy(cp.vl["SECOC_SYNCHRONIZATION"])
-      ret.gasPressed = cp.vl["GAS_PEDAL_278"]["GAS_PEDAL_USER"] > 0
+      ret.gasPressed = cp.vl["GAS_PEDAL"]["GAS_PEDAL_USER"] > 0
       can_gear = int(cp.vl["GEAR_PACKET_HYBRID"]["GEAR"])
     else:
       ret.gasPressed = cp.vl["PCM_CRUISE"]["GAS_RELEASED"] == 0  # TODO: these also have GAS_PEDAL, come back and unify
@@ -86,17 +86,17 @@ class CarState(CarStateBase, CarStateExt):
         ret.stockAeb = bool(cp_acc.vl["PRE_COLLISION"]["PRECOLLISION_ACTIVE"] and cp_acc.vl["PRE_COLLISION"]["FORCE"] < -1e-5)
 
     self.parse_wheel_speeds(ret,
-      cp.vl["WHEEL_SPEEDS_144"]["WHEEL_FL"],
-      cp.vl["WHEEL_SPEEDS_144"]["WHEEL_FR"],
-      cp.vl["WHEEL_SPEEDS_144"]["WHEEL_RL"],
-      cp.vl["WHEEL_SPEEDS_144"]["WHEEL_RR"],
+      cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_FL"],
+      cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_FR"],
+      cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_RL"],
+      cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_RR"],
     )
-    ret.vEgoCluster = ret.vEgo * 1.015
+    ret.vEgoCluster = ret.vEgo * 1.015  # minimum of all the cars
 
     ret.standstill = abs(ret.vEgoRaw) < 1e-3
 
-    ret.steeringAngleDeg = cp.vl["STR1S01"]["SSAZ"]
-    ret.steeringRateDeg = cp.vl["STR1S01"]["SSAV"]
+    ret.steeringAngleDeg = cp.vl["STEER_ANGLE_SENSOR"]["STEER_ANGLE"] + cp.vl["STEER_ANGLE_SENSOR"]["STEER_FRACTION"]
+    ret.steeringRateDeg = cp.vl["STEER_ANGLE_SENSOR"]["STEER_RATE"]
     torque_sensor_angle_deg = cp.vl["STEER_TORQUE_SENSOR"]["STEER_ANGLE"]
 
     # On some cars, the angle measurement is non-zero while initializing
@@ -216,10 +216,21 @@ class CarState(CarStateBase, CarStateExt):
   @staticmethod
   def get_can_parsers(CP, CP_SP):
     pt_messages = [
-      ("STR1S01", 100),
-      ("BRAKE_MODULE_257", 50),
-      ("GAS_PEDAL_278", 50),
-      ("WHEEL_SPEEDS_144", 50),
+      ("BLINKERS_STATE", 0),
+      ("BODY_CONTROL_STATE", 0),
+      ("BODY_CONTROL_STATE_2", 0),
+      ("BRAKE_MODULE", 0),
+      ("ESP_CONTROL", 0),
+      ("PCM_CRUISE", 0),
+      ("PCM_CRUISE_2", 0),
+      ("PCM_CRUISE_SM", 0),
+      ("WHEEL_SPEEDS", 0),
+      ("STEER_ANGLE_SENSOR", 0),
+      ("STEER_TORQUE_SENSOR", 0),
+      ("EPS_STATUS", 0),
+      ("GEAR_PACKET", 0),
+      ("VSC1S07", 0),
+      ("LIGHT_STALK", 0),
     ]
 
     cam_messages = [
@@ -232,6 +243,6 @@ class CarState(CarStateBase, CarStateExt):
     ]
 
     return {
-      Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, 1),
+      Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, 0),
       Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_messages, 2),
     }
