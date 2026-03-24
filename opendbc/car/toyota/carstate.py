@@ -216,33 +216,15 @@ class CarState(CarStateBase, CarStateExt):
   @staticmethod
   def get_can_parsers(CP, CP_SP):
     pt_messages = [
-      ("BLINKERS_STATE", 0),
-      ("BODY_CONTROL_STATE", 0),
-      ("BODY_CONTROL_STATE_2", 0),
-      ("BRAKE_MODULE", 0),
-      ("ESP_CONTROL", 0),
-      ("PCM_CRUISE", 0),
-      ("PCM_CRUISE_2", 0),
-      ("PCM_CRUISE_SM", 0),
-      ("WHEEL_SPEEDS", 0),
-      ("STEER_ANGLE_SENSOR", 0),
-      ("STEER_TORQUE_SENSOR", 0),
-      ("EPS_STATUS", 0),
-      ("GEAR_PACKET", 0),
-      ("VSC1S07", 0),
-      ("LIGHT_STALK", 0),
+      ("BLINKERS_STATE", float('nan')),
     ]
 
     cam_messages = [
       ("RSA1", 0),
       ("RSA2", 0),
-      ("LKAS_HUD", 0),
-      ("ACC_CONTROL", 0),
-      ("PCS_HUD", 0),
-      ("PRE_COLLISION", 0),
     ]
 
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, 0),
-      Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_messages, 2),
+      Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], [] + cam_messages, 2),
     }
