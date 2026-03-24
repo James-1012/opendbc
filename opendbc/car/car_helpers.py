@@ -159,6 +159,7 @@ def get_car(can_recv: CanRecvCallable, can_send: CanSendCallable, set_obd_multip
                                                                           fixed_fingerprint)
   # TEMP: force Prius 5th gen for bring-up
   candidate = TOYOTA.TOYOTA_PRIUS_5TH_GEN
+  carlog.error({"event": "force_candidate_check", "candidate": str(candidate)})
 
   if candidate is None:
     carlog.error({"event": "car doesn't match any fingerprints", "fingerprints": repr(fingerprints)})
