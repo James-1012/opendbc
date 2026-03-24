@@ -160,12 +160,15 @@ def get_car(can_recv: CanRecvCallable, can_send: CanSendCallable, set_obd_multip
   # TEMP: force Prius 5th gen for bring-up
   candidate = TOYOTA.TOYOTA_PRIUS_5TH_GEN
   carlog.error({"event": "force_candidate_check", "candidate": str(candidate)})
+  carlog.error({"event": "before_get_params", "candidate": str(candidate)})
+  carlog.error({"event": "interface_lookup", "candidate_type": str(type(candidate)), "candidate": str(candidate)})
 
   if candidate is None:
     carlog.error({"event": "car doesn't match any fingerprints", "fingerprints": repr(fingerprints)})
     candidate = MOCK.MOCK
 
   CarInterface = interfaces[candidate]
+  carlog.error({"event": "after_interface_lookup", "candidate": str(candidate)})
   CP: CarParams = CarInterface.get_params(candidate, fingerprints, car_fw, alpha_long_allowed, is_release, docs=False)
   CP.carVin = vin
   CP.carFw = car_fw
