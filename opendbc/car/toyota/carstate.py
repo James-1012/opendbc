@@ -72,12 +72,12 @@ class CarState(CarStateBase, CarStateExt):
     ret.seatbeltUnlatched = cp.vl["BODY_CONTROL_STATE"]["SEATBELT_DRIVER_UNLATCHED"] != 0
     ret.parkingBrake = cp.vl["BODY_CONTROL_STATE"]["PARKING_BRAKE"] == 1
 
-    ret.brakePressed = cp.vl["BRAKE_MODULE"]["BRAKE_PRESSED"] != 0
+    ret.brakePressed = cp.vl["BRAKE_MODULE_257"]["BRAKE_PRESSED"] != 0
     ret.brakeHoldActive = cp.vl["ESP_CONTROL"]["BRAKE_HOLD_ACTIVE"] == 1
 
     if self.CP.flags & ToyotaFlags.SECOC.value:
       self.secoc_synchronization = copy.copy(cp.vl["SECOC_SYNCHRONIZATION"])
-      ret.gasPressed = cp.vl["GAS_PEDAL"]["GAS_PEDAL_USER"] > 0
+      ret.gasPressed = cp.vl["GAS_PEDAL_278"]["GAS_PEDAL_USER"] > 0
       can_gear = int(cp.vl["GEAR_PACKET_HYBRID"]["GEAR"])
     else:
       ret.gasPressed = cp.vl["PCM_CRUISE"]["GAS_RELEASED"] == 0  # TODO: these also have GAS_PEDAL, come back and unify
@@ -86,10 +86,10 @@ class CarState(CarStateBase, CarStateExt):
         ret.stockAeb = bool(cp_acc.vl["PRE_COLLISION"]["PRECOLLISION_ACTIVE"] and cp_acc.vl["PRE_COLLISION"]["FORCE"] < -1e-5)
 
     self.parse_wheel_speeds(ret,
-      cp.vl["WHEEL_SPEEDS"]["WHEEL_FL"],
-      cp.vl["WHEEL_SPEEDS"]["WHEEL_FR"],
-      cp.vl["WHEEL_SPEEDS"]["WHEEL_RL"],
-      cp.vl["WHEEL_SPEEDS"]["WHEEL_RR"],
+      cp.vl["WHEEL_SPEEDS_144"]["WHEEL_FL"],
+      cp.vl["WHEEL_SPEEDS_144"]["WHEEL_FR"],
+      cp.vl["WHEEL_SPEEDS_144"]["WHEEL_RL"],
+      cp.vl["WHEEL_SPEEDS_144"]["WHEEL_RR"],
     )
     ret.vEgoCluster = ret.vEgo * 1.015
 
@@ -217,9 +217,9 @@ class CarState(CarStateBase, CarStateExt):
   def get_can_parsers(CP, CP_SP):
     pt_messages = [
       ("STR1S01", 100),
-      ("BRAKE_MODULE", 50),
-      ("GAS_PEDAL", 50),
-      ("WHEEL_SPEEDS", 50),
+      ("BRAKE_MODULE_257", 50),
+      ("GAS_PEDAL_278", 50),
+      ("WHEEL_SPEEDS_144", 50),
     ]
 
     cam_messages = [
