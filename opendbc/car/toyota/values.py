@@ -251,7 +251,7 @@ class CAR(Platforms):
       ToyotaCarDocs("Toyota Prius 2023-"),
     ],
     CarSpecs(mass=3115. * CV.LB_TO_KG, wheelbase=2.70002, steerRatio=13.4, tireStiffnessFactor=0.6371),
-    dbc_dict('toyota_prius_5th_gen_pt', 'toyota_tss2_adas'),
+    
   )
   TOYOTA_RAV4 = PlatformConfig(
     [
