@@ -46,24 +46,6 @@ BO_ 1014 BSM: 8 XXX
  SG_ ADJACENT_ENABLED : 7|1@0+ (1,0) [0|1] "" XXX
  SG_ APPROACHING_ENABLED : 15|1@0+ (1,0) [0|1] "" XXX
 
-BO_ 257 BRAKE_MODULE_257: 8 XXX
- SG_ BRAKE_PRESSED : 3|1@0+ (1,0) [0|1] "" XXX
- SG_ BRAKE_PRESSURE_1 : 31|8@0+ (1,0) [0|255] "" XXX
- SG_ BRAKE_PRESSURE_2 : 61|6@0+ (1,0) [0|63] "" XXX
-
-BO_ 278 GAS_PEDAL_278: 8 XXX
- SG_ GAS_PEDAL_ACC : 7|8@0+ (0.005,0) [0|1.275] "" XXX
- SG_ GAS_PEDAL_USER : 15|8@0+ (0.005,0) [0|1.275] "" XXX
- SG_ AUTHENTICATOR : 35|28@0+ (1,0) [0|268435455] "" XXX
- SG_ RESET_FLAG : 37|2@0+ (1,0) [0|3] "" XXX
- SG_ MSG_CNT_LOWER : 39|2@0+ (1,0) [0|3] "" XXX
-
-BO_ 144 WHEEL_SPEEDS_144: 32 XXX
- SG_ WHEEL_FL : 0|16@0+ (0.01,0) [0|65535] "" XXX
- SG_ WHEEL_FR : 16|16@0+ (0.01,0) [0|65535] "" XXX
- SG_ WHEEL_RL : 32|16@0+ (0.01,0) [0|65535] "" XXX
- SG_ WHEEL_RR : 48|16@0+ (0.01,0) [0|65535] "" XXX
-
 CM_ SG_ 401 PERCENTAGE "driver override percentage (0-100), very close to steeringPressed in OP";
 CM_ SG_ 401 TORQUE_WIND_DOWN "used to wind down torque on user override";
 CM_ SG_ 401 ANGLE "angle of car relative to lane center on LTA camera";
