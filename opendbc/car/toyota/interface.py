@@ -8,6 +8,7 @@ from opendbc.car.toyota.values import Ecu, CAR, DBC, ToyotaFlags, CarControllerP
 from opendbc.car.disable_ecu import disable_ecu
 from opendbc.car.interfaces import CarInterfaceBase
 from opendbc.sunnypilot.car.toyota.values import ToyotaFlagsSP, ToyotaSafetyFlagsSP
+from opendbc.car.carlog import carlog
 
 SteerControlType = structs.CarParams.SteerControlType
 
