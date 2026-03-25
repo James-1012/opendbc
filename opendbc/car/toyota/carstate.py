@@ -216,15 +216,42 @@ class CarState(CarStateBase, CarStateExt):
   @staticmethod
   def get_can_parsers(CP, CP_SP):
     pt_messages = [
-      ("BLINKERS_STATE", float('nan')),
+      ("BODY_CONTROL_STATE", 3),
+      ("BODY_CONTROL_STATE_2", 1),
+      ("BRAKE_MODULE", 40),
+      ("ESP_CONTROL", 3),
+      ("PCM_CRUISE", 33),
+      ("GEAR_PACKET", 1),
+      ("WHEEL_SPEEDS", 80),
+      ("STEER_ANGLE_SENSOR", 80),
+      ("STEER_TORQUE_SENSOR", 50),
+      ("EPS_STATUS", 25),
+      ("PCM_CRUISE_2", 33),
+      ("PCM_CRUISE_SM", 1),
+      ("LIGHT_STALK", 1),
+      ("BLINKERS_STATE", 1),
     ]
 
     cam_messages = [
+      ("LKAS_HUD", 1),
       ("RSA1", 0),
       ("RSA2", 0),
     ]
+    if CP.enableBsm:
+      pt_messages.append(("BSM", 1))
 
+    if not CP.flags & ToyotaFlags.SECOC.value:
+      pt_messages += [
+        ("VSC1S07", 80),
+        ("PRE_COLLISION", 33),
+      ]
+
+    if CP.carFingerprint in TSS2_CAR and not CP.flags & ToyotaFlags.DISABLE_RADAR.value:
+      cam_messages += [
+        ("ACC_CONTROL", 33),
+        ("PCS_HUD", 1),
+      ]
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, 0),
-      Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], [] + cam_messages, 2),
+      Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_messages, 2),
     }
