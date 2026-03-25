@@ -245,12 +245,24 @@ class CarState(CarStateBase, CarStateExt):
         ("VSC1S07", 80),
         ("PRE_COLLISION", 33),
       ]
-
+    else:
+      pt_messages += [
+        ("GAS_PEDAL", 33),
+        ("GEAR_PACKET_HYBRID", 1),
+        ("SECOC_SYNCHRONIZATION", 1),
+      ]
+  
     if CP.carFingerprint in TSS2_CAR and not CP.flags & ToyotaFlags.DISABLE_RADAR.value:
       cam_messages += [
         ("ACC_CONTROL", 33),
         ("PCS_HUD", 1),
       ]
+
+    if CP_SP.flags & ToyotaFlagsSP.SMART_DSU.value and not CP_SP.flags & ToyotaFlagsSP.RADAR_CAN_FILTER:
+      pt_messages += [
+        ("SDSU", 33),
+      ]
+      
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, 0),
       Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_messages, 2),
