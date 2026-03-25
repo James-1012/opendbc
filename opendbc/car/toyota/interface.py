@@ -129,6 +129,14 @@ class CarInterface(CarInterfaceBase):
       if ret.flags & ToyotaFlags.HYBRID.value:
         ret.longitudinalActuatorDelay = 0.05
 
+    carlog.error({
+      "event": "leaving_toyota_get_params",
+      "candidate": str(candidate),
+      "brand": ret.brand,
+      "dashcamOnly": ret.dashcamOnly,
+      "openpilotLongitudinalControl": ret.openpilotLongitudinalControl,
+      "radarUnavailable": ret.radarUnavailable,
+    })
     return ret
 
   @staticmethod
