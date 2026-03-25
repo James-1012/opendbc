@@ -170,13 +170,45 @@ def get_car(can_recv: CanRecvCallable, can_send: CanSendCallable, set_obd_multip
   CarInterface = interfaces[candidate]
   carlog.error({"event": "after_interface_lookup", "candidate": str(candidate)})
   CP: CarParams = CarInterface.get_params(candidate, fingerprints, car_fw, alpha_long_allowed, is_release, docs=False)
+  carlog.error({
+    "event": "after_get_params",
+    "candidate": str(candidate),
+    "cp_carFingerprint": str(CP.carFingerprint),
+  })
+              
   CP.carVin = vin
   CP.carFw = car_fw
   CP.fingerprintSource = source
   CP.fuzzyFingerprint = not exact_match
-  CP_SP = CarInterface.get_params_sp(CP, candidate, fingerprints, car_fw, alpha_long_allowed, is_release_sp, docs=False)
 
+  carlog.error({
+    "event": "before_get_params_sp",
+    "candidate": str(candidate),
+    "cp_carFingerprint": str(CP.carFingerprint),
+  })
+  CP_SP = CarInterface.get_params_sp(CP, candidate, fingerprints, car_fw, alpha_long_allowed, is_release_sp, docs=False)
+  carlog.error({
+    "event": "after_get_params_sp",
+    "candidate": str(candidate),
+    "cp_carFingerprint": str(CP.carFingerprint),
+  })
+  carlog.error({
+    "event": "before_sunnypilot_interfaces",
+    "candidate": str(candidate),
+    "cp_carFingerprint": str(CP.carFingerprint),
+  })
   sunnypilot_interfaces(CarInterface, CP, CP_SP, init_params_list_sp, can_recv, can_send)
+  carlog.error({
+    "event": "after_sunnypilot_interfaces",
+    "candidate": str(candidate),
+    "cp_carFingerprint": str(CP.carFingerprint),
+  })
+
+  carlog.error({
+    "event": "before_interface_ctor",
+    "candidate": str(candidate),
+    "cp_carFingerprint": str(CP.carFingerprint),
+  })
 
   return interfaces[CP.carFingerprint](CP, CP_SP)
 
