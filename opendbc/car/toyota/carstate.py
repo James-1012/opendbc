@@ -63,6 +63,20 @@ class CarState(CarStateBase, CarStateExt):
     ret = structs.CarState()
     ret_sp = structs.CarStateSP()
     cp_acc = cp_cam if self.CP.carFingerprint in (TSS2_CAR - RADAR_ACC_CAR) else cp
+    
+    carlog.error({
+      "event": "carstate_parser_status",
+      "pt_can_valid": cp.can_valid,
+      "cam_can_valid": cp_cam.can_valid,
+      "gas_released": cp.vl["PCM_CRUISE"]["GAS_RELEASED"],
+      "gear": int(cp.vl["GEAR_PACKET"]["GEAR"]),
+      "ws_fl": cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_FL"],
+      "ws_fr": cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_FR"],
+      "ws_rl": cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_RL"],
+      "ws_rr": cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_RR"],
+      "main_on": cp.vl["PCM_CRUISE_2"]["MAIN_ON"],
+      "set_speed": cp.vl["PCM_CRUISE_2"]["SET_SPEED"],
+    })
 
     if not self.CP.flags & ToyotaFlags.SECOC.value:
       self.gvc = cp.vl["VSC1S07"]["GVC"]
