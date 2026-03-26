@@ -136,6 +136,8 @@ class CarInterface(CarInterfaceBase):
       "dashcamOnly": ret.dashcamOnly,
       "openpilotLongitudinalControl": ret.openpilotLongitudinalControl,
       "radarUnavailable": ret.radarUnavailable,
+      "flags": int(ret.flags),
+      "secoc": bool(ret.flags & ToyotaFlags.SECOC.value),
     })
     return ret
 
