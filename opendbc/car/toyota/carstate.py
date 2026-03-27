@@ -69,6 +69,8 @@ class CarState(CarStateBase, CarStateExt):
       "event": "carstate_parser_status",
       "pt_can_valid": cp.can_valid,
       "cam_can_valid": cp_cam.can_valid,
+      "pt_valid": str(getattr(cp, "valid", None)),
+      "pt_valid": str(getattr(cp, "valid", None)),
       "gas_released": cp.vl["PCM_CRUISE"]["GAS_RELEASED"],
       "gear": int(cp.vl["GEAR_PACKET"]["GEAR"]),
       "ws_fl": cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_FL"],
