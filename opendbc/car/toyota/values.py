@@ -246,7 +246,7 @@ class CAR(Platforms):
     ],
     CarSpecs(mass=3115. * CV.LB_TO_KG, wheelbase=2.70002, steerRatio=13.4, tireStiffnessFactor=0.6371),
   )
-  TOYOTA_PRIUS_5TH_GEN = ToyotaTSS2PlatformConfig(
+  TOYOTA_PRIUS_5TH_GEN = ToyotaSecOCPlatformConfig(
     [
       ToyotaCarDocs("Toyota Prius 2023-"),
     ],
