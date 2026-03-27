@@ -246,12 +246,12 @@ class CAR(Platforms):
     ],
     CarSpecs(mass=3115. * CV.LB_TO_KG, wheelbase=2.70002, steerRatio=13.4, tireStiffnessFactor=0.6371),
   )
-  TOYOTA_PRIUS_5TH_GEN = ToyotaTSS2PlatformConfig(
+  TOYOTA_PRIUS_5TH_GEN = PlatformConfig(
     [
       ToyotaCarDocs("Toyota Prius 2023-"),
     ],
-    CarSpecs(mass=3115. * CV.LB_TO_KG, wheelbase=2.70002, steerRatio=13.4, tireStiffnessFactor=0.6371),
-    dbc_dict('toyota_new_mc_pt_generated', 'toyota_tss2_adas'),
+    CarSpecs(mass=1540, wheelbase=2.75, steerRatio=14.0, tireStiffnessFactor=0.65),
+    {Bus.pt: 'toyota_prius_2025_pt'},
     
   )
   TOYOTA_RAV4 = PlatformConfig(
