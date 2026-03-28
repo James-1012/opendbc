@@ -60,7 +60,6 @@ class CarState(CarStateBase, CarStateExt):
   def update(self, can_parsers) -> tuple[structs.CarState, structs.CarStateSP]:
     cp = can_parsers[Bus.pt]
     cp_cam = can_parsers[Bus.cam]
-    cp_dbg = can_parsers[3]
 
     ret = structs.CarState()
     ret_sp = structs.CarStateSP()
