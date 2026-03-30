@@ -65,34 +65,7 @@ class CarState(CarStateBase, CarStateExt):
     ret_sp = structs.CarStateSP()
     cp_acc = cp_cam if self.CP.carFingerprint in (TSS2_CAR - RADAR_ACC_CAR) else cp
     
-    carlog.error({
-      "event": "carstate_bus_compare",
-
-      "pt0_can_valid": cp.can_valid,
-      "pt1_can_valid": cp_dbg.can_valid,
-      "cam_can_valid": cp_cam.can_valid,
-
-      "pt0_ws_fl": cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_FL"],
-      "pt1_ws_fl": cp_dbg.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_FL"],
-
-      "pt0_ws_fr": cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_FR"],
-      "pt1_ws_fr": cp_dbg.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_FR"],
-
-      "pt0_gear": int(cp.vl["GEAR_PACKET"]["GEAR"]),
-      "pt1_gear": int(cp_dbg.vl["GEAR_PACKET"]["GEAR"]),
-
-      "pt0_main_on": cp.vl["PCM_CRUISE_2"]["MAIN_ON"],
-      "pt1_main_on": cp_dbg.vl["PCM_CRUISE_2"]["MAIN_ON"],
-
-      "pt0_set_speed": cp.vl["PCM_CRUISE_2"]["SET_SPEED"],
-      "pt1_set_speed": cp_dbg.vl["PCM_CRUISE_2"]["SET_SPEED"],
-
-      "pt0_angle": cp.vl["STEER_ANGLE_SENSOR"]["STEER_ANGLE"],
-      "pt1_angle": cp_dbg.vl["STEER_ANGLE_SENSOR"]["STEER_ANGLE"],
-
-      "pt0_blinker": cp.vl["BLINKERS_STATE"]["TURN_SIGNALS"],
-      "pt1_blinker": cp_dbg.vl["BLINKERS_STATE"]["TURN_SIGNALS"],
-    })
+  
     if not self.CP.flags & ToyotaFlags.SECOC.value:
       self.gvc = cp.vl["VSC1S07"]["GVC"]
 
@@ -295,5 +268,4 @@ class CarState(CarStateBase, CarStateExt):
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, 1),
       Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_messages, 2),
-      3: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, 0),
     }
