@@ -115,9 +115,8 @@ class CarState(CarStateBase, CarStateExt):
         ret.steeringAngleDeg = torque_sensor_angle_deg - self.angle_offset.x
 
     ret.gearShifter = self.parse_gear_shifter(self.shifter_values.get(can_gear, None))
-    turn_raw = int(cp.vl["BLINKER_RAW"]["TURN_SIG_RAW"])
-    ret.leftBlinker = turn_raw in (0xF0, 0xC0)
-    ret.rightBlinker = turn_raw in (0x10, 0xC0)
+    ret.leftBlinker = cp.vl["BLINKERS_STATE"]["TURN_SIGNALS"] == 1
+    ret.rightBlinker = cp.vl["BLINKERS_STATE"]["TURN_SIGNALS"] == 2
 
     ret.steeringTorque = cp.vl["STEER_TORQUE_SENSOR"]["STEER_TORQUE_DRIVER"]
     ret.steeringTorqueEps = cp.vl["STEER_TORQUE_SENSOR"]["STEER_TORQUE_EPS"] * self.eps_torque_scale
@@ -233,7 +232,6 @@ class CarState(CarStateBase, CarStateExt):
       ("PCM_CRUISE_SM", 1),
       ("LIGHT_STALK", 1),
       ("BLINKERS_STATE", 1),
-      ("BLINKER_RAW", 1),
     ]
 
     cam_messages = [
