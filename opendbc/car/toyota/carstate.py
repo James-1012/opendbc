@@ -216,7 +216,7 @@ class CarState(CarStateBase, CarStateExt):
   @staticmethod
   def get_can_parsers(CP, CP_SP):
     pt_messages = [
-      ("BLINKERS_STATE", float('nan')),
+      ("STEER_ANGLE_SENSOR", 10),
     ]
 
     cam_messages = [
