@@ -36,7 +36,9 @@ class CarState(CarStateBase, CarStateExt):
     self.cluster_speed_hyst_gap = CV.KPH_TO_MS / 2.
     self.cluster_min_speed = CV.KPH_TO_MS / 2.
 
-    if CP.flags & ToyotaFlags.SECOC.value:
+    if CP.carFingerprint == CAR.TOYOTA_PRIUS_5TH_GEN:
+      self.shifter_values = {}  # GEAR_PACKET not yet in DBC; confirmed in Phase 2
+    elif CP.flags & ToyotaFlags.SECOC.value:
       self.shifter_values = can_define.dv["GEAR_PACKET_HYBRID"]["GEAR"]
     else:
       self.shifter_values = can_define.dv["GEAR_PACKET"]["GEAR"]
@@ -63,9 +65,61 @@ class CarState(CarStateBase, CarStateExt):
 
     ret = structs.CarState()
     ret_sp = structs.CarStateSP()
+
+    # ── Prius 5th gen (KR/TSS3) ────────────────────────────────────────────
+    # Only the 5 confirmed Bus-1 messages are subscribed; all other standard
+    # TSS2 signals are absent on this platform and will be filled in
+    # incrementally as Phase-2 DBC work confirms each message.
+    if self.CP.carFingerprint == CAR.TOYOTA_PRIUS_5TH_GEN:
+      # Confirmed messages ✅
+      ret.doorOpen = any([cp.vl["BODY_CONTROL_STATE"]["DOOR_OPEN_FL"],
+                          cp.vl["BODY_CONTROL_STATE"]["DOOR_OPEN_FR"],
+                          cp.vl["BODY_CONTROL_STATE"]["DOOR_OPEN_RL"],
+                          cp.vl["BODY_CONTROL_STATE"]["DOOR_OPEN_RR"]])
+      ret.seatbeltUnlatched = cp.vl["BODY_CONTROL_STATE"]["SEATBELT_DRIVER_UNLATCHED"] != 0
+      ret.parkingBrake = cp.vl["BODY_CONTROL_STATE"]["PARKING_BRAKE"] == 1
+
+      ret.brakeHoldActive = cp.vl["ESP_CONTROL"]["BRAKE_HOLD_ACTIVE"] == 1
+      ret.espDisabled = cp.vl["ESP_CONTROL"]["TC_DISABLED"] != 0
+
+      self.parse_wheel_speeds(ret,
+        cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_FL"],
+        cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_FR"],
+        cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_RL"],
+        cp.vl["WHEEL_SPEEDS"]["WHEEL_SPEED_RR"],
+      )
+      ret.vEgoCluster = ret.vEgo * 1.015
+      ret.standstill = abs(ret.vEgoRaw) < 1e-3
+
+      ret.steeringAngleDeg = (cp.vl["STEER_ANGLE_SENSOR"]["STEER_ANGLE"] +
+                              cp.vl["STEER_ANGLE_SENSOR"]["STEER_FRACTION"])
+      ret.steeringRateDeg = cp.vl["STEER_ANGLE_SENSOR"]["STEER_RATE"]
+
+      ret.leftBlinker = cp.vl["BLINKERS_STATE"]["TURN_SIGNALS"] == 1
+      ret.rightBlinker = cp.vl["BLINKERS_STATE"]["TURN_SIGNALS"] == 2
+
+      # Unconfirmed signals — safe defaults until Phase-2 DBC is complete ⏳
+      ret.brakePressed = False        # BRAKE_MODULE not yet confirmed
+      ret.gasPressed = False          # PCM_CRUISE not yet confirmed
+      ret.gearShifter = structs.CarState.GearShifter.drive  # GEAR_PACKET not yet confirmed
+      ret.steeringTorque = 0.0        # STEER_TORQUE_SENSOR not yet confirmed
+      ret.steeringTorqueEps = 0.0
+      ret.steeringPressed = False
+      ret.steerFaultTemporary = False  # EPS_STATUS not yet confirmed
+      ret.steerFaultPermanent = False
+      ret.vehicleSensorsInvalid = True  # requires STEER_TORQUE_SENSOR for angle calibration
+      ret.cruiseState.available = False  # PCM_CRUISE_2 not yet confirmed
+      ret.cruiseState.enabled = False
+      ret.cruiseState.speed = 0.0
+      ret.accFaulted = False
+      ret.genericToggle = False       # LIGHT_STALK not yet confirmed
+
+      CarStateExt.update(self, ret, ret_sp, can_parsers)
+      return ret, ret_sp
+    # ── end Prius 5th gen ──────────────────────────────────────────────────
+
     cp_acc = cp_cam if self.CP.carFingerprint in (TSS2_CAR - RADAR_ACC_CAR) else cp
-    
-  
+
     if not self.CP.flags & ToyotaFlags.SECOC.value:
       self.gvc = cp.vl["VSC1S07"]["GVC"]
 
@@ -218,6 +272,23 @@ class CarState(CarStateBase, CarStateExt):
 
   @staticmethod
   def get_can_parsers(CP, CP_SP):
+    # Prius 5th gen (KR/TSS3) uses a custom DBC with only confirmed Bus 1 messages.
+    # Other standard TSS2 messages are absent on this platform; subscribing to them
+    # would keep canValid permanently false.
+    if CP.carFingerprint == CAR.TOYOTA_PRIUS_5TH_GEN:
+      pt_messages = [
+        ("STEER_ANGLE_SENSOR", 10),
+        ("WHEEL_SPEEDS",       80),
+        ("BODY_CONTROL_STATE", 3),
+        ("BLINKERS_STATE",     15),
+        ("ESP_CONTROL",        25),
+      ]
+      cam_messages: list = []  # no cam messages confirmed yet
+      return {
+        Bus.pt:  CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages,  1),
+        Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_messages, 2),
+      }
+
     pt_messages = [
       ("STEER_ANGLE_SENSOR", 10),
     ]
@@ -241,7 +312,7 @@ class CarState(CarStateBase, CarStateExt):
         ("GEAR_PACKET_HYBRID", 1),
         ("SECOC_SYNCHRONIZATION", 1),
       ]
-  
+
     if CP.carFingerprint in TSS2_CAR and not CP.flags & ToyotaFlags.DISABLE_RADAR.value:
       cam_messages += [
         ("ACC_CONTROL", 33),
@@ -252,8 +323,8 @@ class CarState(CarStateBase, CarStateExt):
       pt_messages += [
         ("SDSU", 33),
       ]
-      
+
     return {
-      Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, 1),
+      Bus.pt:  CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages,  1),
       Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_messages, 2),
     }
