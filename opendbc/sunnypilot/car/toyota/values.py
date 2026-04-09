@@ -20,3 +20,4 @@ class ToyotaSafetyFlagsSP:
   DEFAULT = 0
   UNSUPPORTED_DSU = 1
   GAS_INTERCEPTOR = 2
+  PRIUS5_GEN = 4  # 5th gen Prius: use minimal RxChecks (WHEEL_SPEEDS only); other bus-0 msgs absent

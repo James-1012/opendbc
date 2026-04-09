@@ -65,10 +65,17 @@
 #define TOYOTA_GAS_INTERCEPTOR_ADDR_CHECK                                                   \
   {.msg = {{0x201, 0, 6, 50U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
 
+// 5th gen Prius (KR/TSS3): only WHEEL_SPEEDS (0xaa) is confirmed on bus 0.
+// PCM_CRUISE (0x1D2), STEER_TORQUE_SENSOR (0x260), BRAKE_MODULE (0x226/0x224),
+// and PCM_CRUISE_2 (0x1D3) are absent; checking them would keep safetyRxChecksInvalid=true.
+#define TOYOTA_PRIUS5_RX_CHECKS \
+  {.msg = {{ 0xaa, 0, 8, 83U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
+
 static bool toyota_secoc = false;
 static bool toyota_alt_brake = false;
 static bool toyota_stock_longitudinal = false;
 static bool toyota_lta = false;
+static bool toyota_prius5 = false;
 static int toyota_dbc_eps_torque_factor = 100;   // conversion factor for STEER_TORQUE_EPS in %: see dbc file
 
 static uint32_t toyota_compute_checksum(const CANPacket_t *msg) {
@@ -418,6 +425,7 @@ static safety_config toyota_init(uint16_t param) {
 
   const uint16_t TOYOTA_PARAM_SP_UNSUPPORTED_DSU = 1;
   const uint16_t TOYTOA_PARAM_SP_GAS_INTERCEPTOR = 2;
+  const uint16_t TOYOTA_PARAM_SP_PRIUS5_GEN = 4;
 
 #ifdef ALLOW_DEBUG
   const uint32_t TOYOTA_PARAM_SECOC = 8UL << TOYOTA_PARAM_OFFSET;
@@ -431,6 +439,7 @@ static safety_config toyota_init(uint16_t param) {
 
   const bool toyota_unsupported_dsu = GET_FLAG(current_safety_param_sp, TOYOTA_PARAM_SP_UNSUPPORTED_DSU);
   enable_gas_interceptor = GET_FLAG(current_safety_param_sp, TOYTOA_PARAM_SP_GAS_INTERCEPTOR);
+  toyota_prius5 = GET_FLAG(current_safety_param_sp, TOYOTA_PARAM_SP_PRIUS5_GEN);
 
   // gas interceptor should not be used if openpilot is not controlling longitudinal or is a TSK car
   if (toyota_stock_longitudinal || toyota_secoc) {
@@ -452,7 +461,14 @@ static safety_config toyota_init(uint16_t param) {
     }
   }
 
-  if (toyota_secoc) {
+  if (toyota_prius5) {
+    // 5th gen Prius: PCM_CRUISE/STEER_TORQUE/BRAKE_MODULE/PCM_CRUISE_2 absent on bus 0.
+    // Only WHEEL_SPEEDS is confirmed; remaining signals will be added as Phase-2 DBC work progresses.
+    static RxCheck toyota_prius5_rx_checks[] = {
+      TOYOTA_PRIUS5_RX_CHECKS
+    };
+    SET_RX_CHECKS(toyota_prius5_rx_checks, ret);
+  } else if (toyota_secoc) {
     static RxCheck toyota_secoc_rx_checks[] = {
       TOYOTA_SECOC_RX_CHECKS
       TOYOTA_PCM_CRUISE_2_ADDR_CHECK
