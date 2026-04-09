@@ -53,6 +53,7 @@ class CarState(CarStateBase, CarStateExt):
     self.distance_button = 0
 
     self.pcm_follow_distance = 0
+    self.pcm_acc_status = 0
 
     self.acc_type = 1
     self.lkas_hud = {}
