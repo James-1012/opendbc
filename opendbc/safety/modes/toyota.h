@@ -442,7 +442,7 @@ static safety_config toyota_init(uint16_t param) {
   toyota_prius5 = GET_FLAG(current_safety_param_sp, TOYOTA_PARAM_SP_PRIUS5_GEN);
 
   // gas interceptor should not be used if openpilot is not controlling longitudinal or is a TSK car
-  if (toyota_stock_longitudinal || toyota_secoc) {
+  if (toyota_stock_longitudinal || toyota_secoc || toyota_prius5) {
     enable_gas_interceptor = false;
   }
 
