@@ -65,11 +65,11 @@
 #define TOYOTA_GAS_INTERCEPTOR_ADDR_CHECK                                                   \
   {.msg = {{0x201, 0, 6, 50U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
 
-// 5th gen Prius (KR/TSS3): only WHEEL_SPEEDS (0xaa) is confirmed on bus 0.
+// 5th gen Prius (KR/TSS3): only WHEEL_SPEEDS (0xaa) is confirmed on bus 1 (PT bus).
 // PCM_CRUISE (0x1D2), STEER_TORQUE_SENSOR (0x260), BRAKE_MODULE (0x226/0x224),
 // and PCM_CRUISE_2 (0x1D3) are absent; checking them would keep safetyRxChecksInvalid=true.
 #define TOYOTA_PRIUS5_RX_CHECKS \
-  {.msg = {{ 0xaa, 0, 8, 83U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
+  {.msg = {{ 0xaa, 1, 8, 83U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
 
 static bool toyota_secoc = false;
 static bool toyota_alt_brake = false;
