@@ -204,9 +204,10 @@ class CarInterface(CarInterfaceBase):
       bool(stock_cp.flags & ToyotaFlags.DISABLE_RADAR)
 
     ret.enableGasInterceptor = 0x201 in fingerprint[0] and stock_cp.openpilotLongitudinalControl and \
-                               not stock_cp.flags & ToyotaFlags.SECOC
+                               not stock_cp.flags & ToyotaFlags.SECOC and \
+                               candidate != CAR.TOYOTA_PRIUS_5TH_GEN
 
-    if ret.enableGasInterceptor and candidate != CAR.TOYOTA_PRIUS_5TH_GEN:
+    if ret.enableGasInterceptor:
       ret.safetyParam |= ToyotaSafetyFlagsSP.GAS_INTERCEPTOR
       stock_cp.minEnableSpeed = -1.
 
