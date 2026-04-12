@@ -108,7 +108,7 @@ class CarState(CarStateBase, CarStateExt):
       ret.steeringPressed = False
       ret.steerFaultTemporary = False  # EPS_STATUS not yet confirmed
       ret.steerFaultPermanent = False
-      ret.vehicleSensorsInvalid = True  # requires STEER_TORQUE_SENSOR for angle calibration
+      ret.vehicleSensorsInvalid = not self.accurate_steer_angle_seen
       ret.cruiseState.available = False  # PCM_CRUISE_2 not yet confirmed
       ret.cruiseState.enabled = False
       ret.cruiseState.speed = 0.0
