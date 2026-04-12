@@ -96,6 +96,11 @@ class CarState(CarStateBase, CarStateExt):
                               cp.vl["STEER_ANGLE_SENSOR"]["STEER_FRACTION"])
       ret.steeringRateDeg = cp.vl["STEER_ANGLE_SENSOR"]["STEER_RATE"]
 
+      # STEER_ANGLE_SENSOR (0x25) is confirmed on bus 1; mark sensors valid once receiving
+      if abs(ret.steeringAngleDeg) > 1e-3 or abs(ret.steeringRateDeg) > 1e-3:
+        self.accurate_steer_angle_seen = True
+      ret.vehicleSensorsInvalid = not self.accurate_steer_angle_seen
+
       ret.leftBlinker = cp.vl["BLINKERS_STATE"]["TURN_SIGNALS"] == 1
       ret.rightBlinker = cp.vl["BLINKERS_STATE"]["TURN_SIGNALS"] == 2
 
@@ -108,7 +113,6 @@ class CarState(CarStateBase, CarStateExt):
       ret.steeringPressed = False
       ret.steerFaultTemporary = False  # EPS_STATUS not yet confirmed
       ret.steerFaultPermanent = False
-      ret.vehicleSensorsInvalid = not self.accurate_steer_angle_seen
       ret.cruiseState.available = False  # PCM_CRUISE_2 not yet confirmed
       ret.cruiseState.enabled = False
       ret.cruiseState.speed = 0.0
