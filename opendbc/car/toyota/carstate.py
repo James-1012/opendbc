@@ -281,8 +281,8 @@ class CarState(CarStateBase, CarStateExt):
         ("STEER_ANGLE_SENSOR", 10),
         ("WHEEL_SPEEDS",       80),
         ("BODY_CONTROL_STATE", 3),
-        ("BLINKERS_STATE",     15),
-        ("ESP_CONTROL",        25),
+        ("BLINKERS_STATE",     1),   # actual ~1Hz on 5th gen Prius
+        ("ESP_CONTROL",        3),   # actual ~3.3Hz on 5th gen Prius
       ]
       cam_messages: list = []  # no cam messages confirmed yet
       return {
