@@ -81,7 +81,10 @@ class ToyotaFlags(IntFlag):
 
 
 def dbc_dict(pt, radar):
-  return {Bus.pt: pt, Bus.radar: radar}
+  d = {Bus.pt: pt}
+  if radar is not None:
+    d[Bus.radar] = radar
+  return d
 
 
 class Footnote(Enum):
