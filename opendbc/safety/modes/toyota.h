@@ -140,7 +140,15 @@ static void toyota_rx_hook(const CANPacket_t *msg) {
     // enter controls on rising edge of ACC, exit controls on ACC off
     // exit controls on rising edge of gas press, if not alternative experience
     // exit controls on rising edge of brake press
-    if (toyota_secoc) {
+    if (toyota_prius5) {
+      // PCM_CRUISE_5TH (0x5F6): byte7 encodes ACC state.
+      // byte7 != 0 and bit7 == 0 (e.g. 0x60) means ACC actively controlling.
+      if (msg->addr == 0x5F6U) {
+        uint8_t cruise_byte = msg->data[7];
+        bool cruise_engaged = (cruise_byte != 0U) && ((cruise_byte & 0x80U) == 0U);
+        pcm_cruise_check(cruise_engaged);
+      }
+    } else if (toyota_secoc) {
       if (msg->addr == 0x176U) {
         bool cruise_engaged = GET_BIT(msg, 5U);  // PCM_CRUISE.CRUISE_ACTIVE
         pcm_cruise_check(cruise_engaged);
