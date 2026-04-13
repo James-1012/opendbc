@@ -211,6 +211,14 @@ static void toyota_rx_hook(const CANPacket_t *msg) {
       gas_interceptor_prev = gas_interceptor;
     }
   }
+
+  // 5th gen Prius (TSS3): PCM_CRUISE_5TH (0x5F6) is on bus 1.
+  // byte7 != 0 and bit7 == 0 (e.g. 0x60) means ACC actively controlling.
+  if (toyota_prius5 && (msg->bus == 1U) && (msg->addr == 0x5F6U)) {
+    uint8_t cruise_byte = msg->data[7];
+    bool cruise_engaged = (cruise_byte != 0U) && ((cruise_byte & 0x80U) == 0U);
+    pcm_cruise_check(cruise_engaged);
+  }
 }
 
 static bool toyota_tx_hook(const CANPacket_t *msg) {
