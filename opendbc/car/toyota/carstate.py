@@ -113,11 +113,17 @@ class CarState(CarStateBase, CarStateExt):
       ret.steeringPressed = False
       ret.steerFaultTemporary = False  # EPS_STATUS not yet confirmed
       ret.steerFaultPermanent = False
-      ret.cruiseState.available = False  # PCM_CRUISE_2 not yet confirmed
-      ret.cruiseState.enabled = False
-      ret.cruiseState.speed = 0.0
       ret.accFaulted = False
       ret.genericToggle = False       # LIGHT_STALK not yet confirmed
+
+      # PCM_CRUISE_5TH (0x5F6): byte7 encodes ACC state.
+      # byte7=0x00 → stopped/dormant (available=False).
+      # byte7 bit-7 set (e.g. 0xe0/0xc0) → driving, ACC standby (available=True, enabled=False).
+      # byte7 bit-7 clear and byte7≠0 (e.g. 0x60) → ACC actively controlling (enabled=True).
+      cruise_byte = int(cp.vl["PCM_CRUISE_5TH"]["CRUISE_BYTE"])
+      ret.cruiseState.available = cruise_byte != 0x00
+      ret.cruiseState.enabled = (cruise_byte & 0x80) == 0 and cruise_byte != 0x00
+      ret.cruiseState.speed = 0.0     # SET_SPEED location not yet confirmed
 
       CarStateExt.update(self, ret, ret_sp, can_parsers)
       return ret, ret_sp
@@ -287,6 +293,7 @@ class CarState(CarStateBase, CarStateExt):
         ("BODY_CONTROL_STATE", 3),
         ("BLINKERS_STATE",     1),   # actual ~1Hz on 5th gen Prius
         ("ESP_CONTROL",        3),   # actual ~3.3Hz on 5th gen Prius
+        ("PCM_CRUISE_5TH",     2),   # 0x5F6 ~2Hz: byte7 encodes ACC state
       ]
       cam_messages: list = []  # no cam messages confirmed yet
       return {

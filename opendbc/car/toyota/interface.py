@@ -203,6 +203,10 @@ class CarInterface(CarInterfaceBase):
       candidate in (TSS2_CAR - RADAR_ACC_CAR) or \
       bool(stock_cp.flags & ToyotaFlags.DISABLE_RADAR)
 
+    # 5th gen Prius (TSS3): ACC_CONTROL absent on camera bus → stock longitudinal only
+    if candidate == CAR.TOYOTA_PRIUS_5TH_GEN:
+      stock_cp.openpilotLongitudinalControl = False
+
     ret.enableGasInterceptor = 0x201 in fingerprint[0] and stock_cp.openpilotLongitudinalControl and \
                                not stock_cp.flags & ToyotaFlags.SECOC and \
                                candidate != CAR.TOYOTA_PRIUS_5TH_GEN
