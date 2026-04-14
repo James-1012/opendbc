@@ -38,6 +38,8 @@ class CarState(CarStateBase, CarStateExt):
 
     if CP.carFingerprint == CAR.TOYOTA_PRIUS_5TH_GEN:
       self.shifter_values = {}  # GEAR_PACKET not yet in DBC; confirmed in Phase 2
+      self._prius5_cruise_last_ts = 0    # ts_nanos of last PCM_CRUISE_5TH_2 frame
+      self._prius5_cruise_timeout = 0    # countdown frames; 0 = ACC not active
     elif CP.flags & ToyotaFlags.SECOC.value:
       self.shifter_values = can_define.dv["GEAR_PACKET_HYBRID"]["GEAR"]
     else:
@@ -116,14 +118,20 @@ class CarState(CarStateBase, CarStateExt):
       ret.accFaulted = False
       ret.genericToggle = False       # LIGHT_STALK not yet confirmed
 
-      # PCM_CRUISE_5TH (0x5F6): byte7 encodes ACC state.
-      # byte7=0x00 → stopped/dormant (available=False).
-      # byte7 bit-7 set (e.g. 0xe0/0xc0) → driving, ACC standby (available=True, enabled=False).
-      # byte7 bit-7 clear and byte7≠0 (e.g. 0x60) → ACC actively controlling (enabled=True).
-      cruise_byte = int(cp.vl["PCM_CRUISE_5TH"]["CRUISE_BYTE"])
-      ret.cruiseState.available = cruise_byte != 0x00
-      ret.cruiseState.enabled = (cruise_byte & 0x80) == 0 and cruise_byte != 0x00
-      ret.cruiseState.speed = 0.0     # SET_SPEED location not yet confirmed
+      # PCM_CRUISE_5TH_2 (0x615): arrives ~0.1 Hz only when ACC is actively SET.
+      # CRUISE_BYTE in PCM_CRUISE_5TH (0x5F6) is a rolling counter — do not use for state.
+      # Use ts_nanos freshness of 0x615 with a 15 s timeout to detect engagement.
+      cruise_5th_2_ts = cp.ts_nanos["PCM_CRUISE_5TH_2"]["SET_SPEED"]
+      if cruise_5th_2_ts != self._prius5_cruise_last_ts and cruise_5th_2_ts > 0:
+        self._prius5_cruise_last_ts = cruise_5th_2_ts
+        self._prius5_cruise_timeout = 1500    # 15 s × 100 Hz
+      elif self._prius5_cruise_timeout > 0:
+        self._prius5_cruise_timeout -= 1
+
+      cruise_active = self._prius5_cruise_timeout > 0
+      ret.cruiseState.available = cruise_active
+      ret.cruiseState.enabled = cruise_active
+      ret.cruiseState.speed = cp.vl["PCM_CRUISE_5TH_2"]["SET_SPEED"] * CV.KPH_TO_MS if cruise_active else 0.0
 
       CarStateExt.update(self, ret, ret_sp, can_parsers)
       return ret, ret_sp
@@ -293,7 +301,8 @@ class CarState(CarStateBase, CarStateExt):
         ("BODY_CONTROL_STATE", 3),
         ("BLINKERS_STATE",     1),   # actual ~1Hz on 5th gen Prius
         ("ESP_CONTROL",        3),   # actual ~3.3Hz on 5th gen Prius
-        ("PCM_CRUISE_5TH",     2),   # 0x5F6 ~2Hz: byte7 encodes ACC state
+        ("PCM_CRUISE_5TH",     2),   # 0x5F6 ~2Hz: rolling counter only (no ACC state)
+        ("PCM_CRUISE_5TH_2",   0),   # 0x615 ~0.1Hz: SET_SPEED + MAIN_ON, arrives when ACC SET
       ]
       cam_messages: list = []  # no cam messages confirmed yet
       return {

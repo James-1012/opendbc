@@ -68,9 +68,9 @@
 // 5th gen Prius (KR/TSS3): only WHEEL_SPEEDS (0xaa) and PCM_CRUISE_5TH (0x5F6) are confirmed on bus 1 (PT bus).
 // PCM_CRUISE (0x1D2), STEER_TORQUE_SENSOR (0x260), BRAKE_MODULE (0x226/0x224),
 // and PCM_CRUISE_2 (0x1D3) are absent; checking them would keep safetyRxChecksInvalid=true.
-// PCM_CRUISE_5TH (0x5F6) arrives at ~2Hz with CRUISE_BYTE encoding ACC state:
-//   data[7]==0x00 → dormant; data[7] bit-7 set → standby; data[7] bit-7 clear and ≠0 → ACC engaged.
-// PCM_CRUISE_5TH_2 (0x615) is transmitted only when ACC is actively engaged (~0.1Hz); whitelisted only.
+// PCM_CRUISE_5TH (0x5F6) at ~2Hz: CRUISE_BYTE (data[7]) is a rolling counter — not used for ACC state.
+// PCM_CRUISE_5TH_2 (0x615) arrives ~0.1Hz only when ACC is actively SET; contains SET_SPEED + MAIN_ON.
+// controls_allowed is set on rising edge of 0x615 arrival and cleared by openpilot enabled timeout.
 #define TOYOTA_PRIUS5_RX_CHECKS \
   {.msg = {{ 0xaa,  1, 8, 83U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
   {.msg = {{ 0x5F6, 1, 8, 2U,  .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
@@ -214,11 +214,11 @@ static void toyota_rx_hook(const CANPacket_t *msg) {
 
   // 5th gen Prius (TSS3): PT bus messages arrive on bus 1.
   if (toyota_prius5 && (msg->bus == 1U)) {
-    // PCM_CRUISE_5TH (0x5F6) at ~2Hz: data[7] encodes ACC state.
-    // data[7]==0x00 → dormant; bit-7 set → standby; bit-7 clear and ≠0 → ACC actively engaged.
-    if (msg->addr == 0x5F6U) {
-      bool cruise_engaged = (msg->data[7] & 0x80U) == 0U && msg->data[7] != 0U;
-      pcm_cruise_check(cruise_engaged);
+    // PCM_CRUISE_5TH_2 (0x615) arrives ~0.1 Hz only when ACC is actively SET.
+    // CRUISE_BYTE in PCM_CRUISE_5TH (0x5F6) is a rolling counter — do not use for state.
+    // Set controls_allowed on rising edge of 0x615 arrival; openpilot clears via enabled timeout.
+    if (msg->addr == 0x615U) {
+      pcm_cruise_check(true);
     }
 
     // WHEEL_SPEEDS (0xaa) is on bus 1 for prius5 — update vehicle speed and moving flag.
