@@ -65,11 +65,16 @@
 #define TOYOTA_GAS_INTERCEPTOR_ADDR_CHECK                                                   \
   {.msg = {{0x201, 0, 6, 50U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
 
-// 5th gen Prius (KR/TSS3): only WHEEL_SPEEDS (0xaa) is confirmed on bus 1 (PT bus).
+// 5th gen Prius (KR/TSS3): only WHEEL_SPEEDS (0xaa) and PCM_CRUISE_5TH (0x5F6) are confirmed on bus 1 (PT bus).
 // PCM_CRUISE (0x1D2), STEER_TORQUE_SENSOR (0x260), BRAKE_MODULE (0x226/0x224),
 // and PCM_CRUISE_2 (0x1D3) are absent; checking them would keep safetyRxChecksInvalid=true.
+// PCM_CRUISE_5TH (0x5F6) arrives at ~2Hz with CRUISE_BYTE encoding ACC state:
+//   data[7]==0x00 → dormant; data[7] bit-7 set → standby; data[7] bit-7 clear and ≠0 → ACC engaged.
+// PCM_CRUISE_5TH_2 (0x615) is transmitted only when ACC is actively engaged (~0.1Hz); whitelisted only.
 #define TOYOTA_PRIUS5_RX_CHECKS \
-  {.msg = {{ 0xaa, 1, 8, 83U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
+  {.msg = {{ 0xaa,  1, 8, 83U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
+  {.msg = {{ 0x5F6, 1, 8, 2U,  .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
+  {.msg = {{ 0x615, 1, 8, 0U,  .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
 
 static bool toyota_secoc = false;
 static bool toyota_alt_brake = false;
@@ -141,13 +146,8 @@ static void toyota_rx_hook(const CANPacket_t *msg) {
     // exit controls on rising edge of gas press, if not alternative experience
     // exit controls on rising edge of brake press
     if (toyota_prius5) {
-      // PCM_CRUISE_5TH (0x5F6): byte7 encodes ACC state.
-      // byte7 != 0 and bit7 == 0 (e.g. 0x60) means ACC actively controlling.
-      if (msg->addr == 0x5F6U) {
-        uint8_t cruise_byte = msg->data[7];
-        bool cruise_engaged = (cruise_byte != 0U) && ((cruise_byte & 0x80U) == 0U);
-        pcm_cruise_check(cruise_engaged);
-      }
+      // 5th gen Prius PT bus messages are on bus 1 — no PCM_CRUISE, 0xaa, or 0x5F6 on bus 0.
+      // pcm_cruise_check and vehicle speed are handled in the bus 1 section below.
     } else if (toyota_secoc) {
       if (msg->addr == 0x176U) {
         bool cruise_engaged = GET_BIT(msg, 5U);  // PCM_CRUISE.CRUISE_ACTIVE
@@ -212,12 +212,25 @@ static void toyota_rx_hook(const CANPacket_t *msg) {
     }
   }
 
-  // 5th gen Prius (TSS3): PCM_CRUISE_5TH (0x5F6) is on bus 1.
-  // byte7 != 0 and bit7 == 0 (e.g. 0x60) means ACC actively controlling.
-  if (toyota_prius5 && (msg->bus == 1U) && (msg->addr == 0x5F6U)) {
-    uint8_t cruise_byte = msg->data[7];
-    bool cruise_engaged = (cruise_byte != 0U) && ((cruise_byte & 0x80U) == 0U);
-    pcm_cruise_check(cruise_engaged);
+  // 5th gen Prius (TSS3): PT bus messages arrive on bus 1.
+  if (toyota_prius5 && (msg->bus == 1U)) {
+    // PCM_CRUISE_5TH (0x5F6) at ~2Hz: data[7] encodes ACC state.
+    // data[7]==0x00 → dormant; bit-7 set → standby; bit-7 clear and ≠0 → ACC actively engaged.
+    if (msg->addr == 0x5F6U) {
+      bool cruise_engaged = (msg->data[7] & 0x80U) == 0U && msg->data[7] != 0U;
+      pcm_cruise_check(cruise_engaged);
+    }
+
+    // WHEEL_SPEEDS (0xaa) is on bus 1 for prius5 — update vehicle speed and moving flag.
+    if (msg->addr == 0xaaU) {
+      int speed = 0;
+      for (uint8_t i = 0U; i < 8U; i += 2U) {
+        int wheel_speed = (msg->data[i] << 8U) | msg->data[(i + 1U)];
+        speed += wheel_speed - 6767;
+      }
+      vehicle_moving = speed != 0;
+      UPDATE_VEHICLE_SPEED(speed / 4.0 * 0.01 * KPH_TO_MS);
+    }
   }
 }
 
