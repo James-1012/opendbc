@@ -83,6 +83,11 @@ static bool toyota_lta = false;
 static bool toyota_prius5 = false;
 static int toyota_dbc_eps_torque_factor = 100;   // conversion factor for STEER_TORQUE_EPS in %: see dbc file
 
+// Prius5: count 0x5F6 messages since last 0x615.
+// Initialised to max so controls start disallowed until first 0x615 is seen.
+#define PRIUS5_615_MAX_GAP 40U  // 40 × 0x5F6 @ 2 Hz = 20 s
+static uint8_t prius5_615_gap = PRIUS5_615_MAX_GAP;
+
 static uint32_t toyota_compute_checksum(const CANPacket_t *msg) {
   int len = GET_LEN(msg);
   uint8_t checksum = (uint8_t)(msg->addr) + (uint8_t)((unsigned int)(msg->addr) >> 8U) + (uint8_t)(len);
@@ -215,10 +220,22 @@ static void toyota_rx_hook(const CANPacket_t *msg) {
   // 5th gen Prius (TSS3): PT bus messages arrive on bus 1.
   if (toyota_prius5 && (msg->bus == 1U)) {
     // PCM_CRUISE_5TH_2 (0x615) arrives ~0.1 Hz only when ACC is actively SET.
-    // CRUISE_BYTE in PCM_CRUISE_5TH (0x5F6) is a rolling counter — do not use for state.
-    // Set controls_allowed on rising edge of 0x615 arrival; openpilot clears via enabled timeout.
+    // Reset the gap counter and allow controls on each 0x615 arrival.
     if (msg->addr == 0x615U) {
       pcm_cruise_check(true);
+      prius5_615_gap = 0U;
+    }
+
+    // PCM_CRUISE_5TH (0x5F6) at 2 Hz: use as a heartbeat to sustain controls_allowed
+    // while ACC remains SET (within PRIUS5_615_MAX_GAP messages of last 0x615).
+    // When the gap expires, ACC is no longer SET and controls are disallowed.
+    if (msg->addr == 0x5F6U) {
+      if (prius5_615_gap < PRIUS5_615_MAX_GAP) {
+        prius5_615_gap++;
+        pcm_cruise_check(true);   // ACC still SET, sustain controls_allowed
+      } else {
+        pcm_cruise_check(false);  // too long without 0x615 → ACC not SET
+      }
     }
 
     // WHEEL_SPEEDS (0xaa) is on bus 1 for prius5 — update vehicle speed and moving flag.
@@ -469,6 +486,7 @@ static safety_config toyota_init(uint16_t param) {
   const bool toyota_unsupported_dsu = GET_FLAG(current_safety_param_sp, TOYOTA_PARAM_SP_UNSUPPORTED_DSU);
   enable_gas_interceptor = GET_FLAG(current_safety_param_sp, TOYTOA_PARAM_SP_GAS_INTERCEPTOR);
   toyota_prius5 = GET_FLAG(current_safety_param_sp, TOYOTA_PARAM_SP_PRIUS5_GEN);
+  prius5_615_gap = PRIUS5_615_MAX_GAP;  // reset: require fresh 0x615 after each init
 
   // gas interceptor should not be used if openpilot is not controlling longitudinal or is a TSK car
   if (toyota_stock_longitudinal || toyota_secoc || toyota_prius5) {
