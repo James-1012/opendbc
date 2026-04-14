@@ -226,16 +226,14 @@ static void toyota_rx_hook(const CANPacket_t *msg) {
       prius5_615_gap = 0U;
     }
 
-    // PCM_CRUISE_5TH (0x5F6) at 2 Hz: use as a heartbeat to sustain controls_allowed
-    // while ACC remains SET (within PRIUS5_615_MAX_GAP messages of last 0x615).
-    // When the gap expires, ACC is no longer SET and controls are disallowed.
+    // PCM_CRUISE_5TH (0x5F6) at 2 Hz: heartbeat that the ACC system is alive.
+    // Use it to keep controls_allowed=true while the car is running.
+    // Actual steering engagement is gated by openpilot's cruiseState.enabled
+    // (which requires a fresh 0x615). Clearing controls_allowed here is
+    // unnecessary: brake_pressed and gas_pressed are never set for prius5
+    // (signals absent from bus 0), so panda would not self-clear anyway.
     if (msg->addr == 0x5F6U) {
-      if (prius5_615_gap < PRIUS5_615_MAX_GAP) {
-        prius5_615_gap++;
-        pcm_cruise_check(true);   // ACC still SET, sustain controls_allowed
-      } else {
-        pcm_cruise_check(false);  // too long without 0x615 → ACC not SET
-      }
+      pcm_cruise_check(true);
     }
 
     // WHEEL_SPEEDS (0xaa) is on bus 1 for prius5 — update vehicle speed and moving flag.
