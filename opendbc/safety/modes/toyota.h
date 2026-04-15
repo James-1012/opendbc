@@ -68,13 +68,13 @@
 // 5th gen Prius (KR/TSS3): only WHEEL_SPEEDS (0xaa) and PCM_CRUISE_5TH (0x5F6) are confirmed on bus 1 (PT bus).
 // PCM_CRUISE (0x1D2), STEER_TORQUE_SENSOR (0x260), BRAKE_MODULE (0x226/0x224),
 // and PCM_CRUISE_2 (0x1D3) are absent; checking them would keep safetyRxChecksInvalid=true.
-// PCM_CRUISE_5TH (0x5F6) at ~2Hz: CRUISE_BYTE (data[7]) is a rolling counter — not used for ACC state.
-// PCM_CRUISE_5TH_2 (0x615) arrives ~0.1Hz only when ACC is actively SET; contains SET_SPEED + MAIN_ON.
-// controls_allowed is set on rising edge of 0x615 arrival and cleared by openpilot enabled timeout.
+// PCM_CRUISE_5TH (0x5F6) at ~2Hz: heartbeat for vehicle_speed and controls_allowed heartbeat.
+// PCM_CRUISE_5TH_2 (0x615) arrives ~0.1Hz only when ACC is SET — NOT in rx_checks because
+// frequency=0 causes division-by-zero in safety_tick (1Hz lag checker). It is processed
+// in rx_hook only, where it calls pcm_cruise_check(true).
 #define TOYOTA_PRIUS5_RX_CHECKS \
   {.msg = {{ 0xaa,  1, 8, 83U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
   {.msg = {{ 0x5F6, 1, 8, 2U,  .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
-  {.msg = {{ 0x615, 1, 8, 0U,  .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
 
 static bool toyota_secoc = false;
 static bool toyota_alt_brake = false;
