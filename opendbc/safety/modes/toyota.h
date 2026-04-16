@@ -73,8 +73,9 @@
 // frequency=0 causes division-by-zero in safety_tick (1Hz lag checker). It is processed
 // in rx_hook only, where it calls pcm_cruise_check(true).
 #define TOYOTA_PRIUS5_RX_CHECKS \
-  {.msg = {{ 0xaa,  1, 8, 83U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
-  {.msg = {{ 0x5F6, 1, 8, 2U,  .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
+  {.msg = {{ 0xaa,  1, 8,  83U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
+  {.msg = {{ 0x5F6, 1, 8,  2U,  .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
+  {.msg = {{ 0x25,  1, 32, 13U, .ignore_checksum = true, .ignore_counter = true, .ignore_quality_flag = true}, { 0 }, { 0 }}}, \
 
 static bool toyota_secoc = false;
 static bool toyota_alt_brake = false;
@@ -227,16 +228,33 @@ static void toyota_rx_hook(const CANPacket_t *msg) {
     }
 
     // PCM_CRUISE_5TH (0x5F6) at 2 Hz: heartbeat that the ACC system is alive.
-    // Use it to keep controls_allowed=true while the car is running.
-    // Actual steering engagement is gated by openpilot's cruiseState.enabled
-    // (which requires a fresh 0x615). Clearing controls_allowed here is
-    // unnecessary: brake_pressed and gas_pressed are never set for prius5
-    // (signals absent from bus 0), so panda would not self-clear anyway.
+    // safety_tick() can set controls_allowed=false directly (bypass pcm_cruise_check),
+    // leaving cruise_engaged_prev=true and blocking future RISING EDGEs.
+    // Force a false→true transition each frame so controls_allowed is reliably
+    // restored at the next 0x5F6 heartbeat regardless of safety_tick state.
     if (msg->addr == 0x5F6U) {
-      pcm_cruise_check(true);
+      pcm_cruise_check(false);  // reset cruise_engaged_prev
+      pcm_cruise_check(true);   // RISING EDGE → controls_allowed = true
+    }
+
+    // STEER_ANGLE_SENSOR (0x25, 32-byte CAN-FD) on bus 1 for prius5.
+    // Update angle_meas in STEERING_LTA units (0.0573 deg/count) so the LTA rate check
+    // initialises desired_angle_last to the actual wheel angle instead of 0.
+    // STEER_ANGLE  : 3|12@0- (1.5 deg/count) → lower nibble of byte0 + byte1
+    // STEER_FRACTION: 39|4@0- (0.1 deg/count) → upper nibble of byte4
+    // Conversion: angle_lta = (raw_sa * 1500 + raw_sf * 100) / 57  (≈ ×1.5/0.0573)
+    if (toyota_lta && (msg->addr == 0x25U)) {
+      int steer_angle_raw = ((int)(msg->data[0] & 0x0FU) << 8) | (int)(msg->data[1]);
+      if (steer_angle_raw >= 2048) { steer_angle_raw -= 4096; }
+      int steer_fraction_raw = (int)((msg->data[4] >> 4U) & 0x0FU);
+      if (steer_fraction_raw >= 8) { steer_fraction_raw -= 16; }
+      int angle_meas_new = (steer_angle_raw * 1500 + steer_fraction_raw * 100) / 57;
+      update_sample(&angle_meas, angle_meas_new);
     }
 
     // WHEEL_SPEEDS (0xaa) is on bus 1 for prius5 — update vehicle speed and moving flag.
+    // Also use as 83 Hz heartbeat to keep controls_allowed=true: safety_tick() can set it
+    // false at 1 Hz, so re-assert here so the gap is at most ~12 ms instead of ~500 ms.
     if (msg->addr == 0xaaU) {
       int speed = 0;
       for (uint8_t i = 0U; i < 8U; i += 2U) {
@@ -245,6 +263,10 @@ static void toyota_rx_hook(const CANPacket_t *msg) {
       }
       vehicle_moving = speed != 0;
       UPDATE_VEHICLE_SPEED(speed / 4.0 * 0.01 * KPH_TO_MS);
+      // Keep controls_allowed stable: force RISING EDGE each frame so safety_tick
+      // false intervals are recovered within one 0xaa period (~12 ms).
+      pcm_cruise_check(false);
+      pcm_cruise_check(true);
     }
   }
 }
