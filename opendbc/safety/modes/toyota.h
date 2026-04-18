@@ -6,6 +6,15 @@
 #define TOYOTA_BASE_TX_MSGS \
   {0x191, 0, 8, .check_relay = true}, {0x412, 0, 8, .check_relay = true}, {0x1D2, 0, 8, .check_relay = false},  /* LKAS + LTA + PCM cancel cmd */  \
 
+// 5th gen Prius: EPS is on bus1 (CAN-FD). STEERING_LTA (0x191) must go to bus1.
+#define TOYOTA_PRIUS5_BASE_TX_MSGS \
+  {0x191, 1, 8, .check_relay = true}, {0x412, 0, 8, .check_relay = true}, {0x1D2, 0, 8, .check_relay = false},  /* LKAS + LTA(bus1) + PCM cancel */  \
+
+#define TOYOTA_PRIUS5_COMMON_TX_MSGS \
+  TOYOTA_PRIUS5_BASE_TX_MSGS \
+  {0x2E4, 0, 5, .check_relay = true}, \
+  {0x343, 0, 8, .check_relay = false},  /* ACC cancel cmd */  \
+
 #define TOYOTA_COMMON_TX_MSGS \
   TOYOTA_BASE_TX_MSGS \
   {0x2E4, 0, 5, .check_relay = true}, \
@@ -481,6 +490,10 @@ static safety_config toyota_init(uint16_t param) {
     {0x200, 0, 6, .check_relay = false},  // gas interceptor
   };
 
+  static const CanMsg TOYOTA_PRIUS5_TX_MSGS[] = {
+    TOYOTA_PRIUS5_COMMON_TX_MSGS
+  };
+
   // safety param flags
   // first byte is for EPS factor, second is for flags
   const uint32_t TOYOTA_PARAM_OFFSET = 8U;
@@ -530,7 +543,8 @@ static safety_config toyota_init(uint16_t param) {
 
   if (toyota_prius5) {
     // 5th gen Prius: PCM_CRUISE/STEER_TORQUE/BRAKE_MODULE/PCM_CRUISE_2 absent on bus 0.
-    // Only WHEEL_SPEEDS is confirmed; remaining signals will be added as Phase-2 DBC work progresses.
+    // EPS is on bus1 (CAN-FD): override TX to send STEERING_LTA (0x191) on bus1 instead of bus0.
+    SET_TX_MSGS(TOYOTA_PRIUS5_TX_MSGS, ret);
     static RxCheck toyota_prius5_rx_checks[] = {
       TOYOTA_PRIUS5_RX_CHECKS
     };

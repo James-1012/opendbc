@@ -159,8 +159,9 @@ class CarController(CarControllerBase, GasInterceptorCarController):
 
       # TORQUE_WIND_DOWN at 0 ramps down torque at roughly the max down rate of 1500 units/sec
       torque_wind_down = 100 if lta_active and full_torque_condition else 0
+      lta_bus = 1 if self.CP.carFingerprint == "TOYOTA_PRIUS_5TH_GEN" else 0
       can_sends.append(toyotacan.create_lta_steer_command(self.packer, self.CP.steerControlType, self.last_angle,
-                                                          lta_active, self.frame // 2, torque_wind_down))
+                                                          lta_active, self.frame // 2, torque_wind_down, bus=lta_bus))
 
       if self.CP.flags & ToyotaFlags.SECOC.value:
         lta_steer_2 = toyotacan.create_lta_steer_command_2(self.packer, self.frame // 2)

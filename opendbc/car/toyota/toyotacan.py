@@ -14,7 +14,7 @@ def create_steer_command(packer, steer, steer_req):
   return packer.make_can_msg("STEERING_LKA", 0, values)
 
 
-def create_lta_steer_command(packer, steer_control_type, steer_angle, steer_req, frame, torque_wind_down):
+def create_lta_steer_command(packer, steer_control_type, steer_angle, steer_req, frame, torque_wind_down, bus=0):
   """Creates a CAN message for the Toyota LTA Steer Command."""
 
   values = {
@@ -30,7 +30,7 @@ def create_lta_steer_command(packer, steer_control_type, steer_angle, steer_req,
     "STEER_REQUEST_2": steer_req,
     "CLEAR_HOLD_STEERING_ALERT": 0,
   }
-  return packer.make_can_msg("STEERING_LTA", 0, values)
+  return packer.make_can_msg("STEERING_LTA", bus, values)
 
 
 def create_lta_steer_command_2(packer, frame):
