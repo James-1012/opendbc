@@ -1,6 +1,40 @@
+import struct as _struct
+
 from opendbc.car.structs import CarParams
 
 SteerControlType = CarParams.SteerControlType
+
+
+def create_prius5_lta_steer_command(angle_deg, active):
+  """
+  Create 0x081 (32-byte CAN-FD) TSS3 LTA steer command for Prius 5th Gen.
+  EPS is on bus1 (CAN-FD). MAC bytes[28:32] are zeroed for initial testing.
+  angle_deg: road-wheel angle in degrees (same convention as STEERING_LTA)
+  active: whether LTA is actively commanding
+  """
+  INACTIVE_SENTINEL = -65  # 0xFFBF: camera sends this when LTA is off
+
+  if active:
+    # Scale: same as TSS2 STEERING_LTA (0.0044 deg/unit). May need tuning.
+    angle_raw = int(round(angle_deg / 0.0044))
+    angle_raw = max(-32767, min(32767, angle_raw))
+  else:
+    angle_raw = INACTIVE_SENTINEL
+
+  data = bytearray(32)
+  data[0:4] = bytes.fromhex('00000018')         # constant preamble
+  data[4:6] = _struct.pack('>h', angle_raw)      # signed int16 BE: angle command
+  data[6:8] = bytes.fromhex('bf1e')              # fixed from observed inactive state
+  # bytes[8:16] = 0x00 * 8 (zeros, already set)
+  data[16:18] = bytes.fromhex('ffa4')            # camera state byte (-92)
+  data[18:20] = bytes.fromhex('ffbf')            # constant = INACTIVE_SENTINEL
+  data[20:22] = bytes.fromhex('ffbf')
+  data[22:24] = bytes.fromhex('ffbf')
+  data[24:26] = bytes.fromhex('ffbf')
+  # bytes[26:28] = 0x00 (neutral/inactive direction)
+  # bytes[28:32] = 0x00 (zeroed SecOC MAC - TEST ONLY, EPS may reject if MAC verified)
+
+  return (0x081, bytes(data), 1)  # (addr, payload, bus1)
 
 
 def create_steer_command(packer, steer, steer_req):

@@ -41,6 +41,9 @@ class CarState(CarStateBase, CarStateExt):
       self._prius5_cruise_last_ts = 0    # ts_nanos of last PCM_CRUISE_5TH_2 frame
       self._prius5_cruise_timeout = 0    # countdown frames; 0 = ACC not active
       self._prius5_cruise_seen_first = False  # ignore first 0x615 on init to allow RISING EDGE
+      self._prius5_init_frames = 0       # frames since start; gate cruise=True until selfdrived initialized
+      self._prius5_5f6_last_ts = 0       # ts_nanos of last PCM_CRUISE_5TH frame (2 Hz heartbeat)
+      self._prius5_5f6_frames_without_615 = 0  # 0x5F6 frames seen since last 0x615 arrived
     elif CP.flags & ToyotaFlags.SECOC.value:
       self.shifter_values = can_define.dv["GEAR_PACKET_HYBRID"]["GEAR"]
     else:
@@ -119,23 +122,37 @@ class CarState(CarStateBase, CarStateExt):
       ret.accFaulted = False
       ret.genericToggle = False       # LIGHT_STALK not yet confirmed
 
-      # PCM_CRUISE_5TH_2 (0x615): arrives ~0.1 Hz only when ACC is actively SET.
-      # CRUISE_BYTE in PCM_CRUISE_5TH (0x5F6) is a rolling counter — do not use for state.
-      # MAIN_ON=0 in 0x615 → immediate cancel; otherwise use 20 s timeout.
-      # First 0x615 on init is ignored (cruise stays False) so that when the second
-      # 0x615 arrives (3-10 s later) the False→True RISING EDGE triggers openpilot engage
-      # even if ACC was already active before the system started.
+      # PCM_CRUISE_5TH_2 (0x615): arrives ~0.1 Hz (every 10 s) when ACC is actively SET.
+      # Timeout = 800 frames (8 s) < 10 s interval → cruise cycles False for ~2 s every
+      # 10 s, generating a natural RISING EDGE so openpilot can re-engage automatically
+      # after any commIssue/softDisabling without requiring the user to cycle ACC.
+      # Init guard: keep cruise=False for the first 800 frames (~8 s) so the rising
+      # edge always lands AFTER selfdrived has finished initializing (~6 s max).
+      self._prius5_init_frames = min(self._prius5_init_frames + 1, 900)
+
+      # Track 0x5F6 (PCM_CRUISE_5TH) arrivals to count "heartbeat frames without 0x615".
+      # When cruise is active but 0x5F6 has ticked 25+ times (~12.5 s) with no new 0x615,
+      # the ACC was cancelled → drop cruise immediately instead of waiting for timeout.
+      cruise_5th_ts = cp.ts_nanos["PCM_CRUISE_5TH"]["CRUISE_BYTE"]
+      if cruise_5th_ts != self._prius5_5f6_last_ts and cruise_5th_ts > 0:
+        self._prius5_5f6_last_ts = cruise_5th_ts
+        if self._prius5_cruise_timeout > 0:
+          self._prius5_5f6_frames_without_615 += 1
+          if self._prius5_5f6_frames_without_615 >= 25:  # 25 × 0.5 s = 12.5 s without 0x615
+            self._prius5_cruise_timeout = 0              # ACC cancelled → disengage now
+
       cruise_5th_2_ts = cp.ts_nanos["PCM_CRUISE_5TH_2"]["SET_SPEED"]
       if cruise_5th_2_ts != self._prius5_cruise_last_ts and cruise_5th_2_ts > 0:
         self._prius5_cruise_last_ts = cruise_5th_2_ts
+        self._prius5_5f6_frames_without_615 = 0          # fresh 0x615 → reset counter
         if not self._prius5_cruise_seen_first:
-          # First packet after init: keep timeout=0 so cruise stays False.
-          # The next 0x615 will produce a proper False→True RISING EDGE.
+          # First packet: keep timeout=0 so cruise stays False.
           self._prius5_cruise_seen_first = True
-        elif cp.vl["PCM_CRUISE_5TH_2"]["MAIN_ON"]:
-          self._prius5_cruise_timeout = 2000  # 20 s × 100 Hz (covers 10 s max gap)
-        else:
+        elif not cp.vl["PCM_CRUISE_5TH_2"]["MAIN_ON"]:
           self._prius5_cruise_timeout = 0     # MAIN_ON=0 → ACC main off, cancel immediately
+        elif self._prius5_init_frames >= 800:
+          self._prius5_cruise_timeout = 1100  # 11 s × 100 Hz (safely covers 10 s max gap)
+        # else: MAIN_ON=1 but still in init window → skip, wait for next 0x615
       elif self._prius5_cruise_timeout > 0:
         self._prius5_cruise_timeout -= 1
 

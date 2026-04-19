@@ -7,8 +7,11 @@
   {0x191, 0, 8, .check_relay = true}, {0x412, 0, 8, .check_relay = true}, {0x1D2, 0, 8, .check_relay = false},  /* LKAS + LTA + PCM cancel cmd */  \
 
 // 5th gen Prius: EPS is on bus1 (CAN-FD). STEERING_LTA (0x191) must go to bus1.
+// check_relay=false for 0x191 on bus1: TSS3 camera sends 0x081 (not 0x191) on bus1,
+// so relay check for 0x191 would never pass → panda would block every TX → controls mismatch.
 #define TOYOTA_PRIUS5_BASE_TX_MSGS \
-  {0x191, 1, 8, .check_relay = true}, {0x412, 0, 8, .check_relay = true}, {0x1D2, 0, 8, .check_relay = false},  /* LKAS + LTA(bus1) + PCM cancel */  \
+  {0x191, 1, 8, .check_relay = false}, {0x412, 0, 8, .check_relay = true}, \
+  {0x1D2, 0, 8, .check_relay = false},  /* LKAS + LTA(bus1) + PCM cancel */  \
 
 #define TOYOTA_PRIUS5_COMMON_TX_MSGS \
   TOYOTA_PRIUS5_BASE_TX_MSGS \
