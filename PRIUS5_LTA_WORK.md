@@ -111,16 +111,26 @@ mac = AES_CMAC(key, to_auth)[:28bit]
 - **복구**: 시동 끄고 재시작 후 경고 사라짐
 - **결론**: EPS는 MAC을 **실제로 검증함** → 키 없이는 불가능
 
+### 시도 4: check_relay=true로 0x191을 bus1 전송 (실패 → "controls mismatch")
+- **결과**: comma 화면에 "controls mismatch" 오류 지속 발생
+- **이유**: panda의 `check_relay=true`는 OEM ECU가 해당 주소 메시지를 bus에 보내고 있음을 확인한 후 TX를 허용함.
+  - 표준 Toyota: 카메라가 bus0에 0x191 전송 → panda가 차단 확인 → TX 허용
+  - prius5: 카메라가 bus1에 **0x081** 전송 (0x191 없음) → relay 확인 불가 → **매 프레임 TX 거부** → controls mismatch
+- **수정**: `check_relay=true` → `check_relay=false` for `{0x191, 1, 8}` in `TOYOTA_PRIUS5_BASE_TX_MSGS`
+- **결과**: panda 빌드/플래시 후 controls mismatch 해소 (예상)
+
 ---
 
 ## 현재 코드 상태
 
 ### `opendbc/safety/modes/toyota.h`
-- prius5용 TX_MSGS: 0x191을 bus1으로 전송 허용 (0x081은 제거됨)
+- prius5용 TX_MSGS: 0x191을 bus1으로 전송 허용, **check_relay=false** (핵심 수정)
 
 ```c
+// check_relay=false: TSS3 카메라가 bus1에 0x191을 보내지 않으므로
+// relay check가 절대 성공 안 함 → true이면 매 프레임 TX 거부 → controls mismatch
 #define TOYOTA_PRIUS5_BASE_TX_MSGS \
-  {0x191, 1, 8, .check_relay = true}, {0x412, 0, 8, .check_relay = true}, \
+  {0x191, 1, 8, .check_relay = false}, {0x412, 0, 8, .check_relay = true}, \
   {0x1D2, 0, 8, .check_relay = false},
 ```
 
@@ -131,6 +141,14 @@ mac = AES_CMAC(key, to_auth)[:28bit]
 ### `opendbc/car/toyota/carcontroller.py`
 - prius5에서 `lta_bus = 1` 사용하여 0x191을 bus1으로 전송
 - 0x081 전송은 제거됨
+
+### `opendbc/car/toyota/carstate.py` (이번 세션 추가)
+- `_prius5_init_frames`: 시작 후 800프레임(~8초) 동안 cruise=False 유지 → selfdrived 초기화 완료 후 RISING EDGE 보장
+- `_prius5_5f6_last_ts`, `_prius5_5f6_frames_without_615`: 0x5F6 heartbeat 추적 → 0x615 없이 25프레임(~12.5초) 경과 시 ACC 취소 즉시 감지
+
+### 최신 커밋
+- `5ae3b50d` — `fix(prius5): use check_relay=false for 0x191 on bus1 to fix controls mismatch`
+- GitHub: https://github.com/James-1012/opendbc (master)
 
 ---
 
