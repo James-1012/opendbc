@@ -38,12 +38,10 @@ class CarState(CarStateBase, CarStateExt):
 
     if CP.carFingerprint == CAR.TOYOTA_PRIUS_5TH_GEN:
       self.shifter_values = {}  # GEAR_PACKET not yet in DBC; confirmed in Phase 2
-      self._prius5_cruise_last_ts = 0    # ts_nanos of last PCM_CRUISE_5TH_2 frame
-      self._prius5_cruise_timeout = 0    # countdown frames; 0 = ACC not active
-      self._prius5_cruise_seen_first = False  # ignore first 0x615 on init to allow RISING EDGE
-      self._prius5_init_frames = 0       # frames since start; gate cruise=True until selfdrived initialized
-      self._prius5_5f6_last_ts = 0       # ts_nanos of last PCM_CRUISE_5TH frame (2 Hz heartbeat)
-      self._prius5_5f6_frames_without_615 = 0  # 0x5F6 frames seen since last 0x615 arrived
+      self._prius5_cruise_last_ts = 0        # ts_nanos of last PCM_CRUISE_5TH_2 frame
+      self._prius5_cruise_seen_first = False  # first 0x615 after ignition → synth engage press
+      self._prius5_init_frames = 0           # frames since start; gate synth engage until init done
+      self._prius5_engage_fired = False      # True after we've emitted the one-shot engage press
     elif CP.flags & ToyotaFlags.SECOC.value:
       self.shifter_values = can_define.dv["GEAR_PACKET_HYBRID"]["GEAR"]
     else:
@@ -122,44 +120,33 @@ class CarState(CarStateBase, CarStateExt):
       ret.accFaulted = False
       ret.genericToggle = False       # LIGHT_STALK not yet confirmed
 
-      # PCM_CRUISE_5TH_2 (0x615): arrives ~0.1 Hz (every 10 s) when ACC is actively SET.
-      # Timeout = 800 frames (8 s) < 10 s interval → cruise cycles False for ~2 s every
-      # 10 s, generating a natural RISING EDGE so openpilot can re-engage automatically
-      # after any commIssue/softDisabling without requiring the user to cycle ACC.
-      # Init guard: keep cruise=False for the first 800 frames (~8 s) so the rising
-      # edge always lands AFTER selfdrived has finished initializing (~6 s max).
+      # pcmCruise=False: openpilot owns engage state.
+      # TSS3 Prius 5 has no clean "cruise engaged" CAN signal (MAIN_ON permanently 1,
+      # 0x615 is just a ~0.1 Hz system-alive heartbeat). So we emit a synthetic
+      # accelCruise press+release ONCE, on the first 0x615 after selfdrived init,
+      # which triggers openpilot's buttonEnable path and engages lateral.
+      # TODO: decode real steering-wheel SET/RES/CANCEL buttons from CAN (one more
+      # targeted capture) to support user-driven re-engage after brake/CANCEL.
       self._prius5_init_frames = min(self._prius5_init_frames + 1, 900)
 
-      # Track 0x5F6 (PCM_CRUISE_5TH) arrivals to count "heartbeat frames without 0x615".
-      # When cruise is active but 0x5F6 has ticked 25+ times (~12.5 s) with no new 0x615,
-      # the ACC was cancelled → drop cruise immediately instead of waiting for timeout.
-      cruise_5th_ts = cp.ts_nanos["PCM_CRUISE_5TH"]["CRUISE_BYTE"]
-      if cruise_5th_ts != self._prius5_5f6_last_ts and cruise_5th_ts > 0:
-        self._prius5_5f6_last_ts = cruise_5th_ts
-        if self._prius5_cruise_timeout > 0:
-          self._prius5_5f6_frames_without_615 += 1
-          if self._prius5_5f6_frames_without_615 >= 25:  # 25 × 0.5 s = 12.5 s without 0x615
-            self._prius5_cruise_timeout = 0              # ACC cancelled → disengage now
+      ret.cruiseState.available = True        # 0x5F6 heartbeat alive ⇒ cruise system ready
+      ret.cruiseState.enabled = False         # openpilot manages; buttonEvents drive engage
+      ret.cruiseState.speed = 0.0
 
+      prius5_button_events: list = []
       cruise_5th_2_ts = cp.ts_nanos["PCM_CRUISE_5TH_2"]["SET_SPEED"]
       if cruise_5th_2_ts != self._prius5_cruise_last_ts and cruise_5th_2_ts > 0:
         self._prius5_cruise_last_ts = cruise_5th_2_ts
-        self._prius5_5f6_frames_without_615 = 0          # fresh 0x615 → reset counter
         if not self._prius5_cruise_seen_first:
-          # First packet: keep timeout=0 so cruise stays False.
-          self._prius5_cruise_seen_first = True
-        elif not cp.vl["PCM_CRUISE_5TH_2"]["MAIN_ON"]:
-          self._prius5_cruise_timeout = 0     # MAIN_ON=0 → ACC main off, cancel immediately
-        elif self._prius5_init_frames >= 800:
-          self._prius5_cruise_timeout = 1100  # 11 s × 100 Hz (safely covers 10 s max gap)
-        # else: MAIN_ON=1 but still in init window → skip, wait for next 0x615
-      elif self._prius5_cruise_timeout > 0:
-        self._prius5_cruise_timeout -= 1
-
-      cruise_active = self._prius5_cruise_timeout > 0
-      ret.cruiseState.available = cruise_active
-      ret.cruiseState.enabled = cruise_active
-      ret.cruiseState.speed = cp.vl["PCM_CRUISE_5TH_2"]["SET_SPEED"] * CV.KPH_TO_MS if cruise_active else 0.0
+          self._prius5_cruise_seen_first = True   # swallow first 0x615 (init noise)
+        elif not self._prius5_engage_fired and self._prius5_init_frames >= 800:
+          # One-shot synthetic SET press+release → openpilot engages once
+          prius5_button_events = [
+            structs.CarState.ButtonEvent(pressed=True,  type=ButtonType.accelCruise),
+            structs.CarState.ButtonEvent(pressed=False, type=ButtonType.accelCruise),
+          ]
+          self._prius5_engage_fired = True
+      ret.buttonEvents = prius5_button_events
 
       CarStateExt.update(self, ret, ret_sp, can_parsers)
       return ret, ret_sp

@@ -204,8 +204,12 @@ class CarInterface(CarInterfaceBase):
       bool(stock_cp.flags & ToyotaFlags.DISABLE_RADAR)
 
     # 5th gen Prius (TSS3): ACC_CONTROL absent on camera bus → stock longitudinal only
+    # TSS3 Prius 5 has no clean "cruise engaged" CAN signal (MAIN_ON is permanently 1,
+    # 0x615 is a system-alive heartbeat), so openpilot can't mirror PCM cruise state.
+    # pcmCruise=False → openpilot manages its own engage via buttonEvents.
     if candidate == CAR.TOYOTA_PRIUS_5TH_GEN:
       stock_cp.openpilotLongitudinalControl = False
+      stock_cp.pcmCruise = False
 
     ret.enableGasInterceptor = 0x201 in fingerprint[0] and stock_cp.openpilotLongitudinalControl and \
                                not stock_cp.flags & ToyotaFlags.SECOC and \
