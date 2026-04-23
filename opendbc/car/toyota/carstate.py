@@ -137,15 +137,23 @@ class CarState(CarStateBase, CarStateExt):
 
       prius5_button_events: list = []
       cruise_5th_2_ts = cp.ts_nanos["PCM_CRUISE_5TH_2"]["SET_SPEED"]
+      # DEBUG: periodic heartbeat of engage state
+      if self._prius5_init_frames % 500 == 0:
+        carlog.info(f"[PRIUS5] init={self._prius5_init_frames} cruise_5th_2_ts={cruise_5th_2_ts} "
+                    f"last_ts={self._prius5_cruise_last_ts} seen_first={self._prius5_cruise_seen_first}")
       if cruise_5th_2_ts != self._prius5_cruise_last_ts and cruise_5th_2_ts > 0:
         self._prius5_cruise_last_ts = cruise_5th_2_ts
         if not self._prius5_cruise_seen_first:
           self._prius5_cruise_seen_first = True   # swallow first 0x615 (init noise)
+          carlog.info(f"[PRIUS5] first 0x615 received at init={self._prius5_init_frames}, will fire on next")
         elif self._prius5_init_frames >= 800:
           prius5_button_events = [
             structs.CarState.ButtonEvent(pressed=True,  type=ButtonType.accelCruise),
             structs.CarState.ButtonEvent(pressed=False, type=ButtonType.accelCruise),
           ]
+          carlog.info(f"[PRIUS5] FIRE synth accelCruise press at init={self._prius5_init_frames}")
+        else:
+          carlog.info(f"[PRIUS5] 0x615 edge but init<800: {self._prius5_init_frames}")
       ret.buttonEvents = prius5_button_events
 
       CarStateExt.update(self, ret, ret_sp, can_parsers)
