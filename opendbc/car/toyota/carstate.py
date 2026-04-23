@@ -122,12 +122,13 @@ class CarState(CarStateBase, CarStateExt):
       # pcmCruise=False: openpilot owns engage state.
       # TSS3 Prius 5 has no "cruise engaged" CAN signal (MAIN_ON permanently 1,
       # 0x615 is just a ~0.1 Hz system-alive heartbeat). Emit synthetic
-      # accelCruise press+release on every 0x615 rising edge within an 8s→30s
-      # post-init window → gives ~2–3 retries so one attempt succeeds after
-      # selfdrived's startup commIssue clears. After 30s firing stops to avoid
-      # set-speed drift if already engaged.
+      # accelCruise press+release on every 0x615 rising edge (after an 8s init
+      # settle). With openpilotLong=False + pcmCruise=False, accelCruise press
+      # while already engaged is a no-op (no OP set-speed to adjust; buttonEnable
+      # only triggers on disabled→enabled edge), so retrying is safe and also
+      # gives auto re-engage ~10s after any brake-induced disengage.
       # TODO: decode real steering-wheel SET/RES/CANCEL buttons from CAN for
-      # user-driven re-engage after brake/CANCEL.
+      # user-driven re-engage.
       self._prius5_init_frames = min(self._prius5_init_frames + 1, 10000)
 
       ret.cruiseState.available = True        # 0x5F6 heartbeat alive ⇒ cruise system ready
@@ -140,7 +141,7 @@ class CarState(CarStateBase, CarStateExt):
         self._prius5_cruise_last_ts = cruise_5th_2_ts
         if not self._prius5_cruise_seen_first:
           self._prius5_cruise_seen_first = True   # swallow first 0x615 (init noise)
-        elif 800 <= self._prius5_init_frames <= 3000:
+        elif self._prius5_init_frames >= 800:
           prius5_button_events = [
             structs.CarState.ButtonEvent(pressed=True,  type=ButtonType.accelCruise),
             structs.CarState.ButtonEvent(pressed=False, type=ButtonType.accelCruise),
