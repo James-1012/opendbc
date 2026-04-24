@@ -147,11 +147,14 @@ class CarState(CarStateBase, CarStateExt):
           self._prius5_cruise_seen_first = True   # swallow first 0x615 (init noise)
           carlog.info(f"[PRIUS5] first 0x615 received at init={self._prius5_init_frames}, will fire on next")
         elif self._prius5_init_frames >= 800:
+          # decelCruise (not accelCruise): both trigger buttonEnable on falling edge,
+          # but resumeBlocked only checks accelCruise/resumeCruise → decelCruise skips
+          # the block when vCruise is still at V_CRUISE_UNSET (255).
           prius5_button_events = [
-            structs.CarState.ButtonEvent(pressed=True,  type=ButtonType.accelCruise),
-            structs.CarState.ButtonEvent(pressed=False, type=ButtonType.accelCruise),
+            structs.CarState.ButtonEvent(pressed=True,  type=ButtonType.decelCruise),
+            structs.CarState.ButtonEvent(pressed=False, type=ButtonType.decelCruise),
           ]
-          carlog.info(f"[PRIUS5] FIRE synth accelCruise press at init={self._prius5_init_frames}")
+          carlog.info(f"[PRIUS5] FIRE synth decelCruise press at init={self._prius5_init_frames}")
         else:
           carlog.info(f"[PRIUS5] 0x615 edge but init<800: {self._prius5_init_frames}")
       ret.buttonEvents = prius5_button_events
